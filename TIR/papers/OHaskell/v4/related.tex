@@ -1,0 +1,139 @@
+\medskip
+
+\section{Related work}
+\label{S:related}
+
+The literature on object representation and encoding is quite
+extensive, e.g., ~\cite{Cardelli-on-understanding,
+Poll97,AC96,Ohori95,PT94,BM92}.  Often objects are primitive
+constructs in the language.  Most often discussed are pure functional
+objects. Most often the type systems of object models are variants of
+system $F_{\leq}$ (polymorphic lambda-calculus plus subtyping).
+
+\medskip
+
+\subsection{ML-ART}
+
+We identify the {ML-ART} paper \cite{ML-ART} (see also
+\cite{RV97}) as the closest to us~---~in motivation and spirit (but
+not in the technical approach). We share with Didier R{\'e}my the goal
+of discovering the small set of language features that make OO
+programming possible. We aim not at introducing objects but at being
+able to implement objects~---~as a \emph{library} feature. Therefore,
+several OO styles can be implemented, for different classes of users
+and classes of problems. One does not need to learn any new language
+and can discover OOP progressively. Both {ML-ART} and OOHaskell base
+their object systems on polymorphic records (only we use records of
+closures, in this paper). Both OOHaskell and{ML-ART} deal with
+mutable objects.
+
+What fundamentally sets us apart from {ML-ART} is the different source
+language: Haskell. In Haskell, we can implement polymorphic records
+natively rather than via an extension. We can avoid row variables and
+their related complexities. Our records permit introspection and thus
+let us \emph{implement} subtyping. Unlike {ML-ART}, OOHaskell can
+compute the most common type of two record types, without any explicit
+coercions or user annotations.  Constructing objects via
+value recursion is one of three major ways of implementing OOP (the
+other two are type recursion and existential abstraction
+\cite{PT94}). The value recursion seems simpler but is generally
+unsafe, because of the possibility of accessing a slot before it has
+been filled in. But in a call-by-name or similar language the
+fixpoints are always safe, as mentioned already in \cite{ML-ART}.
+ 
+Our current implementation has strong similarities with
+prototype-based systems (such as Self~\cite{Self}) in that mutable
+fields and method `pointers' are a part of the same record. This does
+not have to be the case~---~and in fact, in our current efforts on
+pure-functional objects we separate the two tables (in the manner
+similar to object realisations in C++ or Java).
+
+
+
+\subsection{Haskell extensions or variations}
+
+There were attempts to bring OO to Haskell by a language extension. An
+early attempt is Haskell++~\cite{HS95} by Hughes and Sparud. The
+authors motivated their extension by the perception that Haskell lacks
+the form of incremental reuse that is offered by inheritance in
+object-oriented languages. Our approach uses common extensions of the
+Hindley-Milner type system to provide the key OO notions.  So in a
+way, Haskell's fitness for OOP just had to be discovered, which is the
+contribution of this paper. Nordlander has delivered a comprehensive
+OOP variation on
+Haskell~---~O`Haskell~\cite{Nordlander98,Nordlander02}, which extends
+Haskell with reactive objects and subtyping. The subtyping part is a
+formidable extension. The reactive object part combines stateful
+objects and concurrent execution, again a major extension. Our
+development shows that no extension of Haskell is necessary for
+stateful objects with a faithful object-oriented type system. Finally,
+there is Mondrian~---~a NET-able variation on Haskell. In the original
+paper on the design and implementation of Mondrian~\cite{MC97}, Meijer
+and Claessen write: ``The design of a type system that deals with
+subtyping, higher-order functions, and objects is a formidable
+challenge ...''. Rather than designing a very complicated language,
+the overall principle underlying Mondrian was to obtain a simple
+Haskell dialect with an object-oriented flavor. To this end, algebraic
+datatypes and type classes were combined into a simple object-oriented
+type system with no real subtyping, with completely covariant
+type-checking. In Mondrian, runtime errors of the kind ``message not
+understood'' are considered a problem akin to partial functions with
+non-exhaustive case discriminations. We raise the bar by providing
+proper subtyping (``all message will be understood'') and other OOP
+concepts in Haskell without extending the Haskell type system.
+
+
+
+\subsection{Other OO encodings for Haskell}
+
+The exercise of encoding some tenets of OO in Haskell seems to be a
+favourite pastime of Haskell aficionados. The most pressing motivation
+for such efforts has been the goal to import foreign libraries or
+components into Haskell~\cite{FLMPJ99,SPJ01,PC03}. This problem domain
+makes simplifying assumptions when compared to actual OO program
+development in Haskell:
+
+\begin{itemize}\noskip
+\item Object state does not reside in Haskell data.
+\item There are only (opaque) object ids referring to the foreign site.
+\item (I.e., state is solely accessed through methods (``properties'').
+\item Haskell methods are (often generated) stubs for foreign code.
+\item As a result, such OO styles just deal with interfaces.
+\item Also, no actual (sub)classes are written by the programmer.
+\end{itemize}
+
+One approach is to use phantom types for recording inheritance
+relationships \cite{FLMPJ99}. One represents each interface by an
+(empty) datatype with a type parameter for extension. After due
+consideration, it turns out that this approach is a restricted version
+of what Burton called ``type extension through polymorphism'': even
+records can be made extensible through the provision of a polymorphic
+dummy field~\cite{Burton90}. Once we do not maintain Haskell data for
+objects, there is no need to maintain a record type, but the extension
+point is a left over, and it becomes a phantom.  We ``re-generalize''
+the phantom approach in the appendix. Its remaining problems are: lack
+of support for multiple inheritance, lack of proper encapsulation
+(which could be fixed at the expense of self-reference problems), code
+bloat for accessors in subclasses, a closed-world assumption on base
+classes, and the use of existentials for coercion to common base types
+(cf.\ Sec.~\ref{S:ex} for the implied problems).
+
+Another approach is to set up a Haskell type class to represent the
+subtyping relationship among interfaces~\cite{SPJ01,PC03} while each
+interface is modelled as a dedicated (empty) Haskell type. We enhance
+this approach by state in the appendix. This second approach fixes
+some of the aforementioned problems: multiple inheritance is possible;
+there is no closed-world assumption for base classes, but the other
+problems remain. There is an additional problem with code bloat
+related to the expression of transitive subtyping relationships.
+
+We do not further discuss more untyped and less extensible variations
+where OO subclasses do not amount to distinguished Haskell types,
+where they are modelled as constructors of a ``base-class
+type''. There also exist very restrictive variations where only
+abstract-to-concrete inheritance relationships are allowed. As a final
+point, the published Haskell reference solution for the Shapes
+benchmark
+\url{http://www.angelfire.com/tx4/cus/shapes/} is a simple-to-understand
+code that does not attempt to maximise reuse among data declarations
+and accessors. It also uses existentials for handling subtyping.

@@ -1,0 +1,54 @@
+<HTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide16.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide18.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+... Database Programming
+
+<!-- END TITLE -->
+
+</H2>
+<P>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+<LI>An example database query using extensible records as relations:
+<BLOCKQUOTE><CODE>
+selectBreed :: Breed -> Query [<BR />
+&nbsp;&nbsp;&nbsp;AnimalId :=: Maybe AnimalIdDomain :*:<BR />
+&nbsp;&nbsp;&nbsp;AnimalName :=: Maybe AnimalNameDomain :*:<BR />
+&nbsp;&nbsp;&nbsp;HNil]<BR />
+<BR />
+selectBreed b = do<BR />
+&nbsp;&nbsp;&nbsp;r1 <- table animalTable<BR />
+&nbsp;&nbsp;&nbsp;r2 <- restrict r1 (\r -> r!AnimalType `SQL.eq` toSqlType b)<BR />
+&nbsp;&nbsp;&nbsp;r3 <- project r2 (AnimalId .*. AnimalName .*. HNil)<BR />
+&nbsp;&nbsp;&nbsp;doSelect r3<BR />
+</CODE></BLOCKQUOTE></LI>
+
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+</P>
+<BR />
+<BR />
+</CENTER>
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

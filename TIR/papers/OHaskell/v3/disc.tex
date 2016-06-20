@@ -1,0 +1,100 @@
+
+
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+
+ 
+\section{Final discussion}
+\label{S:disc}
+
+We have described an OOP system for Haskell that supports stateful
+objects, inheritance and subtype polymorphism. The Shapes Benchmark
+demonstrated that our encoding is very close to the textbook OO code
+(usually given in C++ or Java tutorials), with pleasant
+deviations. The re-implementation of examples from the OCaml object
+tutorial demonstrated the faithfulness of our realisation of
+objects. (We have opted for OCaml because it is a leading object
+system in a functional setting.) We have implemented parameterised
+classes, constructor methods, abstract classes, pure virtual methods,
+single and multiple inheritance with flexible rules of sharing or
+separation of superclasses. Major byproducts are these: extensive type
+inference, first-class classes, sharing of the code of methods among
+even non-related classes, implicit polymorphism of classes, fully
+static type checking.
+
+We have clarified the relation between subtyping and type-class based
+polymorphism: the latter can encode the former. We have implemented
+OOHaskell with the existing Haskell implementation (GHC), requiring no
+extra extensions beyond the commonly implemented ones: multi-parameter
+type classes with functional dependencies. It is quite pleasant that
+the existing OOHaskell code does not seem to be a burden to
+write~---~even in the absence of any syntactic sugar.  Once we
+consider open recursion in our setup, it turns out that the object
+constructor (i.e., `new') is merely the monadic fix-point operation
+(i.e., `mfix'). Just as people have known all the time~---~OO and
+recursion are intertwined.
+
+There exists a large body of literature,
+e.g.,~\cite{Poll97,AC96,Ohori95,Remy94a,PT94,BM92}. Most often
+discussed are pure functional objects. Most often the type systems of
+object models are variants of system $F_{\leq}$ (polymorphic
+lambda-calculus plus subtyping). Most often objects with open
+recursion are represented either with recursive types, or with
+existentially quantified types. In the present paper we demonstrated
+the encoding of imperative objects with inheritance and polymorphism
+in Haskell~---~that is, polymorphic lambda-calculus plus
+multi-parameter type classes with functional dependencies. Unlike
+$F_{\leq}$, there is no built-in subtyping relation. It is remarkable
+that our encoding of imperative objects avoids both recursive types
+and existentially quantified types. A particularly interesting case
+are functional objects, which seem to require recursive or
+existentially-quantified types. Functional objects and preservation of
+type inference is to be discussed in a forthcoming paper.  Our current
+implementation has strong similarities with prototype-based systems
+(such as Self~\cite{Self}) in that mutable fields and method
+`pointers' are a part of the same record. This does not have to be the
+case~---~and in fact, in the forthcoming paper on pure-functional
+objects we separate the two tables (in the manner similar to object
+realisations in C++ or Java).
+
+There are some further idioms that complement OOHaskell as a faithful
+OOP system.  For instance, we need to take measures to do
+instantiation checking for classes at declaration time. Otherwise some
+type errors would go unnoticed until the first attempt to programme an
+instantiation. We can also model various forms of private and
+protected methods and other access modifiers. We can clone objects, we
+can let methods return `self', we can operate in the ST monad rather
+than the IO monad. The article comes with an extensive collection of
+source code~\cite{OOHaskell}, where these and other issues are
+covered. The source code also illustrates some cases of depth
+subtyping~\cite{Poll97} and statically safe argument
+covariance. However, the extent and limitations of our handling of
+depth subtyping remains the subject of ongoing research.
+
+We are currently working on some elaborations and advanced topics.
+Simple syntactic sugar would make OOP more convenient in Haskell.
+Extra effort is needed to provide OOP-like error messages.  This is a
+sticking issue that requires major effort, but there is a line of
+research being carried out by Sulzmann and others~\cite{SSW04}. A
+non-trivial case study is required to demonstrate the scalability of
+the approach. The mere compilation time of OOHaskell programs and
+their runtime efficiency is challenged by the huge dictionaries that
+are implied by our type-class-based approach.  It seems that some
+dedicated optimisations will be needed in order to handle the
+\HList/OOHaskell style of programming efficiently. An interesting
+advanced topic is reflective programming. A simple form of reflection
+is readily provided in terms of the type-level encoding of
+records. One can iterate over records and their components in a
+generic fashion. Other forms of reflection, such as iteration over the
+object pool, as needed for dynamic aspect-oriented programming,
+requires further effort. Another challenge is to capture reusable
+solutions for design problems (as part of design patterns) in Haskell.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

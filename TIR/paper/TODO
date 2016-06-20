@@ -1,0 +1,12 @@
+%
+% Mention that type synonyms cannot be subjected to constraint-only classes.
+% Say why the first three steps in the DB example are monadic!
+% Say how explosive type equality explodes for function types!
+% Refer to Chameleon web site or what else!?
+% Perhaps refer to Ohori!
+% More explicit discussion of features needed for extensible records. 
+% Discuss limits of the solution.
+% Discuss let (a,b) = tuple oneTrue in (a+(1::Int), not b) example
+% Take credit for open vs. closed world!
+% Discuss type error!
+%

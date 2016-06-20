@@ -1,0 +1,1033 @@
+\documentclass{slides}
+
+\usepackage{times}
+\usepackage{comment}
+\usepackage{boxedminipage}
+\usepackage{alltt}
+\usepackage{graphics}
+\usepackage[usenames]{pstcol}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{ifthen}
+\usepackage{code}
+
+
+\newcommand{\pure}{\textsc{PURE}}
+\newcommand{\littleskip}{\topsep6pt \parskip6pt \partopsep6pt}
+\newcommand{\noskip}{\topsep0pt \parskip0pt \partopsep0pt}
+\newcommand{\header}[1]{{\large\scshape \color{Red} #1} \medskip }
+\newcommand{\blau}[1]{{\color{Blue} #1} \medskip }
+\newenvironment{myslide}{\begin{slide}\color{Blue}\begin{boxedminipage}{1.1\hsize}\begin{boxedminipage}{1\hsize}\color{Black}
+\vspace{-170\in}
+}{%
+\smallskip
+\end{boxedminipage}
+\end{boxedminipage}
+\end{slide}}
+
+
+\begin{document}
+
+\pagestyle{empty}
+
+% Switch on the 'at' sign
+\makeatactive
+
+
+%\begin{comment}
+\begin{slide}
+
+Press PgDn to start.
+
+\end{slide}
+%\end{comment}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+
+\header{
+\begin{center}
+Preprocessing support\\ for type-level programming in Haskell
+\end{center}
+}
+
+\vspace{200\in}
+
+\blau{Ralf L{\"a}mmel\\
+Vrije Universiteit Amsterdam\\
+Centrum voor Wiskunde en Informatica}
+
+\bigskip
+Joint work with\\
+Oleg Kiselyov, FNMO Center, Monterey, CA\\
+Keean Schupke, Imperial College, London
+
+\bigskip
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Motivation}
+
+\blau{The HList library$^*$ for heterogeneous collections}
+
+{\small
+
+\littleskip\begin{itemize}
+\item Heterogeneous lists (nested, right-associative products)
+\item Heterogeneous arrays (indexed by type-level Nats)
+\item Type-driven access operations
+\item Type-indexed products and co-products
+\item Extensible records and variants
+\end{itemize}
+
+Issue: Current library code uses verbose type-class code.
+
+\bigskip
+
+$^*$\ Come and attend the Haskell Workshop 2004; next week!!!
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Illustration of verbosity}
+
+{\tiny
+
+\blau{Normal append in Haskell's Prelude}
+
+\vspace{-42\in}
+
+\begin{code}
+append :: [a] -> [a] -> [a]
+append [] l = l
+append (x:l) l' = x : append l l'
+\end{code}
+
+\blau{Type-level append in HList library}
+
+\vspace{-42\in}
+
+\begin{code}
+data HNil = HNil
+data HCons h t = HCons h t
+\end{code}
+\begin{code}
+class  HAppend l l' l'' | l l' -> l''
+ where hAppend :: l -> l' -> l''
+\end{code}
+\begin{code}
+instance HAppend HNil l l where hAppend HNil l = l
+\end{code}
+\begin{code} 
+instance HAppend l l' l''
+      => HAppend (HCons x l) l' (HCons x l'')
+ where   hAppend (HCons x l) l' = HCons x (hAppend l l')
+\end{code}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{All verbosity disclosed}
+
+{\tiny
+
+\begin{code}
+data HNil = HNil
+data HCons h t = HCons h t
+
+class HList l
+instance HList HNil
+instance HList t => HList (HCons h t)
+
+class (HList l, HList l', HList l'')
+   =>  HAppend l l' l'' | l l' -> l''
+ where hAppend :: l -> l' -> l''
+ 
+instance HList l => HAppend HNil l l
+ where hAppend HNil l = l
+ 
+instance (HList l, HAppend l l' l'')
+      => HAppend (HCons x l) l' (HCons x l'')
+ where   hAppend (HCons x l) l' = HCons x (hAppend l l')
+\end{code}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Plan of attack}
+
+{\small
+
+\littleskip
+\begin{enumerate}
+\item Reuse many `normal' algebraic datatypes.
+\item Reuse many `normal' function definitions.
+\item Design functions with type-level `contracts'.
+
+\vspace{-42\in}
+{\tiny
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+myPickyFun :: ... -> r
+myPickyFun ... = ... 
+ \textbf{require} ... -- contract
+\end{Verbatim}
+}
+\item Preprocessing of \texttt{myPickyFun}
+\begin{enumerate}
+\item Reify types referred to in contract.
+\item Reify functions used in contract.
+\item \texttt{myPickyFun} becomes a constrained function.
+
+\vspace{-42\in}
+{\tiny\begin{Verbatim}
+myPickyFun :: ( ... {- contract -} ... )
+           => ... -> r
+myPickyFun ... = ... 
+\end{Verbatim}
+}
+\end{enumerate}
+\end{enumerate}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The \emph{equal length} sample$^*$}
+
+\blau{A `run-time-checked' append}
+
+{\tiny
+
+\begin{code}
+rtcAppend :: [a] -> [a] -> Maybe [a]
+rtcAppend lst1 lst2
+   = if length lst3 == add (length lst1) (length lst2)
+        then Just lst3
+        else Nothing
+ where
+  lst3 = append lst1 lst2
+\end{code}
+
+}
+
+\bigskip
+
+{\tiny
+
+$^*$\ Let's not try HLists immediately, which are non-standard.\\
+\phantom{$^*$}\ We will get there.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The equal-length sample cont'd}
+
+\blau{A `compile-time-checked' append}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small,commandchars=\\\{\}]
+ctcAppend :: [a] -> [a] -> [a]
+ctcAppend lst1 lst2 = lst3
+ where
+  lst3 = append lst1 lst2
+ \textbf{require}
+  length lst3 == add (length lst1) (length lst2) 
+\end{Verbatim}
+
+{\small
+
+`\textbf{require}' triggers: reification of naturals, lists and the
+involved operations. The operation \texttt{ctcAppend} can be
+viewed as a constrained, partially type-level operation.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The result of preprocessing}
+
+\blau{Type-level lists$^*$}
+
+{\small
+
+\begin{code}
+data Nil a    = Nil
+data Cons b a = Cons a (b a)
+ 
+class List ( lst :: * -> * )
+instance List Nil
+instance List b => List (Cons b)
+\end{code}
+
+\bigskip
+
+$^*$\ List functor reified.
+
+}
+
+\end{myslide}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The result of preprocessing cont'd}
+
+\blau{Type-level append$^*$}
+
+{\tiny
+
+\begin{code}
+class  (List l1, List l2, List l3)
+   =>  Append l1 l2 l3 | l1 l2 -> l3
+ where append :: l1 a -> l2 a -> l3 a
+
+instance List x => Append Nil x x
+ where append Nil x = x
+
+instance Append t x t'
+      => Append (Cons t) x (Cons t')
+ where   append (Cons h t) x = Cons h (append t x)
+\end{code}
+
+\bigskip
+
+$^*$\ We have seen that.\\
+\phantom{$^*$}\ Continue like this for naturals and all that.
+
+}
+
+\end{myslide}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The result of preprocessing cont'd}
+
+\blau{The `compile-time-checked' append}
+
+{\tiny
+
+\begin{code}
+ctcAppend :: ( Append lst1 lst2 lst3
+             , Length lst1 nat1 
+             , Length lst2 nat2
+             , Length lst3 nat3
+             , Add nat1 nat2 nat12
+             , Eq nat3 nat12 True
+             ) => lst1 a -> lst2 a -> lst3 a
+ctcAppend = append
+\end{code}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Relevant preprocessing idioms}
+
+{\small
+
+\noskip\begin{description}
+\item[Functor] Data types are reified in their functorial form.
+\item[Constructor] Each constructor gives rise to one datatype.
+\item[Signature] Function signatures become class declarations.
+\item[Equation] Equations become instances.
+\item[Require1] Function with `require' is defined by a single equation.
+\item[Require2] Condition becomes constraint of host function.
+\item[Case] Reification of case expressions requires helper classes.
+\item[Linear] We only use linear instances (equations are linear anyway).
+\item[Eager] Type-level functions are not lazy.
+\item[Close] Pretend closed type classes for non-overloaded functions.
+\item[Times] Reification of classes requires duplicated parameters.
+\item[Para] Reify type parameters as per constructor parameters.
+\item[Cast] Reify existential castables as constructor parameters.
+\end{description}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The \emph{HList} sample}
+
+\blau{An ambiguous look-up operation}
+
+{\tiny
+
+\begin{code}
+-- Weakly typed heterogeneous lists
+type HList    = [Castable]
+data Castable = forall x. Typeable x => Castable x 
+unCastable :: Typeable x => Castable -> Maybe x
+unCastable (Castable x) = cast x
+
+-- Look up all elements of a given type
+hOccursMany :: Typeable a => HList -> [a]
+hOccursMany [] = []
+hOccursMany (h:t) = case unCastable h of
+                      Just a  -> a : hOccursMany t
+                      Nothing -> hOccursMany t
+\end{code}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The \emph{HList} sample cont'd}
+
+\blau{A `run-time-checked' unambiguous look-up operation}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small,commandchars=\\\{\}]
+rtcHOccurs :: Typeable a => HList -> Maybe a
+rtcHOccurs hl = if length many == Succ Zero 
+                  then Just (head many)
+                  else Nothing
+ where
+  many = hOccursMany hl
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The \emph{HList} sample cont'd}
+
+\blau{A `compile-time-checked' look-up operation}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small,commandchars=\\\{\}]
+ctcHOccurs :: Typeable a => HList -> a
+ctcHOccurs hl = head many
+ where
+  many = hOccursMany hl
+ \textbf{require}
+  length many == Succ Zero
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The result of preprocessing}
+
+\blau{The `compile-time-checked' look-up operation}
+
+{\small
+
+\begin{code}
+ctcHOccurs :: ( HOccursMany a hl lst
+              , Length lst len
+              , Eq len (Succ Zero) True
+              , Head lst
+              )
+           => hl -> a
+ctcHOccurs hl = head many
+ where
+  many = hOccursMany hl
+\end{code}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reification of {\textrm{\texttt{hOccursMany}}}}
+
+\blau{Difficult!}
+
+\vspace{-42\in}
+
+{\small
+
+\littleskip\begin{itemize}
+%
+\item We need to reify existentially qualified castables.\\
+Use heterogeneous lists.
+%
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+data HNil = HNil
+data HCons h t = HCons h t
+\end{Verbatim}
+%
+\item We need to reify type-safe cast.\\
+Well, we managed to lift boilerplate's cast to the type-level.
+%
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+class Maybe m => Cast x m y | x y -> m
+ where cast :: x -> m y
+\end{Verbatim}
+%
+\item We need to perform case on type-level maybies.\\
+Easy!
+%
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+class (Maybe m, HList hl, List lst)
+   =>  HOccursManyCase m a hl lst | m hl a -> lst
+ where hOccursManyCase :: m a -> hl -> lst a
+\end{Verbatim}
+%
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The result of preprocessing cont'd}
+
+\blau{Type-level ambiguous look-up operation}
+
+{\tiny
+
+\begin{code}
+class (HList hl, List lst)
+   =>  HOccursMany a hl lst | hl a -> lst
+ where
+  hOccursMany :: hl -> lst a
+
+instance HOccursMany a HNil Nil
+ where
+  hOccursMany HNil = Nil
+
+instance (Cast h m a, HOccursManyCase m a t lst)
+      =>  HOccursMany a (HCons h t) lst
+ where
+  hOccursMany (HCons h t) = hOccursManyCase (cast h) t
+\end{code}
+
+}
+
+\end{myslide}
+
+
+
+\begin{myslide}
+
+\header{cont'd}
+
+{\tiny
+
+\begin{code}
+class (HList hl, List lst)
+   =>  HOccursManyCase m a hl lst | m hl a -> lst
+ where
+  hOccursManyCase :: m a -> hl -> lst a
+
+instance (HList hl, List lst, HOccursMany a hl lst)
+      =>  HOccursManyCase Just a hl (Cons lst)
+ where 
+  hOccursManyCase (Just a) hl = Cons a (hOccursMany hl) 
+
+instance (HList hl, List lst, HOccursMany a hl lst)
+      =>  HOccursManyCase Nothing a hl lst
+ where
+  hOccursManyCase Nothing hl = hOccursMany hl
+\end{code}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{slide}
+
+\medskip
+
+Thank you for your attention.\\
+End of slide show.
+
+\bigskip
+
+{\tiny
+
+Spare slides:
+\littleskip\begin{itemize}
+\item Type-level verification.
+\item Stanamic operations.
+\end{itemize}
+
+}
+
+\medskip
+
+\end{slide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Beyond compile-time checks}
+
+\blau{Verification~---~Wanted!}
+
+{\small
+
+\[\begin{array}{l}
+\forall\,\alpha :: *.\ \forall\,l_1, l_2 :: \texttt{List}\ \alpha.\\ 
+\texttt{add}\ (\texttt{length}\ l_1)\ (\texttt{length}\ l_2) == 
+\texttt{length}\ (\texttt{append}\ l_1\ l_2)
+\end{array}\]
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+\bigskip
+\bigskip
+
+\blau{Proof by induction on \texttt{append}'s first operand}
+
+{
+
+\tiny
+
+\begin{itemize}
+%
+\item Base case: $l_1 == \texttt{Nil}$ 
+
+$\begin{array}{p{1.5in}ll}
+& & \texttt{length}\ (\texttt{append}\ \texttt{Nil}\ l_2)\\
+\mbox{(base \texttt{append})}
+& ==
+& \texttt{length}\ l_2
+\\
+\mbox{}\\
+& & \texttt{add}\ (\texttt{length}\ \texttt{Nil})\ (\texttt{length}\ l_2)\\
+\mbox{(base \texttt{length})}
+& ==
+& \texttt{add}\ \texttt{Zero}\ (\texttt{length}\ l_2)
+\\
+\mbox{(base \texttt{add})}
+& ==
+& \texttt{length}\ l_2
+\end{array}$
+
+%
+%
+%
+\item Induction step: $l_1$ is of the form $\texttt{Cons}\ a\ b$
+
+$\begin{array}{p{1.5in}ll}
+& & \texttt{length}\ (\texttt{append}\ (\texttt{Cons}\ a\ b)\ l_2)\\
+\mbox{step \texttt{append})}
+& ==
+& \texttt{length}\ (\texttt{Cons}\ a\ (\texttt{append}\ b\ l_2))
+\\
+\mbox{step \texttt{length})}
+& ==
+& \texttt{Succ}\ (\texttt{length}\ (\texttt{append}\ b\ l_2))
+\\
+\mbox{}\\
+& & \texttt{add}\ (\texttt{length}\ (\texttt{Cons}\ a\ b))\ (\texttt{length}\ l_2)\\
+\mbox{(step \texttt{length})}
+& ==
+& \texttt{add}\ (\texttt{Succ}\ (\texttt{length}\ b))\ (\texttt{length}\ l_2)
+\\
+\mbox{(step \texttt{add})}
+& ==
+& \texttt{Succ}\ (\texttt{add}\ (\texttt{length}\ b)\ (\texttt{length}\ l_2))
+\\
+\mbox{(ind.\ hypoth.)}
+& ==
+& \texttt{Succ}\ (\texttt{length}\ (\texttt{append}\ b\ l_2))
+\end{array}$
+
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{From `require' to `with'}
+
+\blau{Lists with a natural as index}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+data List <x::Nat> a
+   = Nil                      \textbf{with} x = Zero
+   | Cons a (List <y::Nat> a) \textbf{with} x = Succ y
+\end{Verbatim}
+
+\blau{A verified append on the indexed lists}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+append :: List <len1> a -> List <len2> a -> List <len3> a
+ \textbf{with} 
+  len3 == add len1 len2
+append Nil x = x
+append (Cons h t) x = Cons h (append t x)
+\end{Verbatim}
+
+\blau{Example of an impossible flaw}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+append (Cons h t) x = append t x -- does not type check
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Encoding indexed types}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+data Nil len a    = Nil
+data Cons b len a = Cons a (b a)
+class List ( lst :: * -> * )
+instance List (Nil Zero)
+instance List (b len) => List (Cons (b len) (Succ len))
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Encoding verification conditions as class constraints}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+class ( List (l1 len1)
+      , List (l2 len2)
+      , List (l3 len3)
+      , Add len1 len2 len3
+      )
+   => Append l1 len1 l2 len2 l3 len3
+    | l1 len1 l2 len2 -> l3 len3
+ where
+  append :: l1 len1 a -> l2 len2 a -> l3 len3 a
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Encoding the induction proof}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+instance (Nat len, List (x len))
+      =>  Append Nil Zero x len x len
+ where   
+  append Nil x = x
+
+instance Append t len x xlen t' len'
+      => Append (Cons (t len))   (Succ len)
+                x                xlen
+                (Cons (t' len')) (Succ len')
+ where
+  append (Cons h t) x = Cons h (append t x)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Where are we?}
+
+\begin{itemize}
+\item We can distinguish subsets of normal types.
+\item We can compile-time program with type equality.
+\item We can compile-time guard function applications.
+\item We can compile-time verify function definitions.
+\item We can turn reified values into normal values.
+\item Can we also go the other way around? (Yes!)
+\item Can we mix type-level and normal values? (Yes!)
+\end{itemize}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Mix type-level and normal values}
+
+\blau{Stanamic naturals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small]
+data VNat    = VZero | VSucc VNat
+data TZero   = TZero
+data TSucc n = TSucc n
+
+class Nat n
+instance Nat VNat
+instance Nat TZero
+instance Nat n => Nat (TSucc n)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Turn reified values into normal ones}
+
+\blau{Fold over type-level naturals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+class TNat n
+ where
+  onTNat :: n -> r -> (forall n'. TNat n' => n' -> r) -> r
+  
+instance TNat TZero
+ where
+  onTNat _ r _ = r
+
+instance TNat n => TNat (TSucc n)
+ where
+  onTNat (TSucc n) _ f = f n
+\end{Verbatim}
+
+\medskip
+
+\blau{Example: extraction of normal naturals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+tn2vn :: TNat n => n -> VNat
+tn2vn tn = onTNat tn VZero (\tn' -> VSucc (tn2vn tn'))
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Process normal values as reified ones}
+
+\blau{Example: roundtrip}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+vn2tn :: VNat -> (forall n. TNat n => n -> w) -> w
+vn2tn VZero f      = f TZero
+vn2tn (VSucc vn) f = vn2tn vn (\tn -> f (TSucc tn))
+
+ghci-or-hugs> vn2tn (VSucc (VSucc VZero)) tn2vn
+VSucc (VSucc VZero)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{slide}
+
+\medskip
+
+Thank you for your attention.
+
+\medskip
+
+End of slide show.
+
+\medskip
+
+\end{slide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\end{document}

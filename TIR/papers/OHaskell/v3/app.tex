@@ -1,0 +1,203 @@
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\appendix
+
+\section{Type-preserving record update}
+\label{A:hTPupdateAtLabel}
+
+%\ralf{Some line comments need to be added.}
+
+\begin{code}
+ infixr 1 .<.
+ (l,v) .<. r = hTPupdateAtLabel l v r
+\end{code}
+
+\begin{code}
+ hTPupdateAtLabel l (v::v) r = hUpdateAtLabel l v r
+  where
+   (_::v) = hLookupByLabel l r
+\end{code}
+ 
+\begin{code}
+ hUpdateAtLabel l v (Record r) = Record (hZip ls vs')
+  where
+   (ls,vs) = hUnzip r
+   n       = hFind l ls
+   vs'     = hUpdateAtHNat n v vs
+\end{code}
+
+\begin{code}
+ hLookupByLabel l (Record r) = v
+  where
+   (ls,vs) = hUnzip r
+   n       = hFind l ls
+   v       = hLookupByHNat n vs
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Type-driven narrowing for records}
+\label{A:narrow}
+
+%\ralf{Some line comments need to be added.}
+
+\begin{code}
+ class  Narrow a b
+  where narrow :: Record a -> Record b
+\end{code}
+
+\begin{code}
+ instance Narrow a HNil
+  where   narrow _ = emptyRecord
+\end{code}
+
+\begin{code}
+ instance ( Narrow r r', HExtract r l v
+          ) => Narrow r (HCons (l,v) r')
+  where
+    narrow (Record r) = Record (HCons (l,v) r')
+      where
+        (Record r')    = narrow (Record r)
+        ((l,v)::(l,v)) = hExtract r
+\end{code}
+
+\begin{code}
+ class  HExtract r l v
+  where hExtract :: r -> (l,v)
+\end{code}
+
+\begin{code}
+ instance ( TypeEq l l1 b, HExtractBool b (HCons (l1,v1) r) l v
+          ) => HExtract (HCons (l1,v1) r) l v
+  where hExtract = hExtractBool (undefined::b)
+\end{code}
+
+\begin{code}
+ class HBool b => HExtractBool b r l v
+  where hExtractBool :: b -> r -> (l,v)
+\end{code}
+
+\begin{code}
+ instance TypeCast v1 v => HExtractBool HTrue (HCons (l,v1) r) l v
+  where hExtractBool _ (HCons (l,v) _) = (l,typeCast v)
+\end{code}
+
+\begin{code}
+ instance HExtract r l v => HExtractBool HFalse (HCons (l1,v1) r) l v
+  where hExtractBool _ (HCons _ r) = hExtract r
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Left-biased union on records}
+\label{A:hLeftUnion}
+
+%\ralf{Some line comments need to be added.}
+
+\begin{code}
+ class  HLeftUnion r r' r'' | r r' -> r''
+  where hLeftUnion :: r -> r' -> r''
+\end{code}
+
+\begin{code}
+ instance HLeftUnion r (Record HNil) r
+  where   hLeftUnion r _ = r
+\end{code}
+
+\begin{code}
+ instance ( HZip ls vs r
+          , HMember l ls b
+          , HLeftUnionBool b r l v r'''
+          , HLeftUnion (Record r''') (Record r') r''
+          )
+            => HLeftUnion (Record r) (Record (HCons (l,v) r')) r''
+  where
+   hLeftUnion (Record r) (Record (HCons (l,v) r')) = r''
+    where
+     (ls,vs) = hUnzip r
+     b       = hMember l ls
+     r'''    = hLeftUnionBool b r l v
+     r''     = hLeftUnion (Record r''') (Record r')
+\end{code}
+
+\begin{code}
+ class  HLeftUnionBool b r l v r' | b r l v -> r'
+  where hLeftUnionBool :: b -> r -> l -> v -> r'
+\end{code}
+
+\begin{code}
+ instance HLeftUnionBool HTrue r l v r
+    where hLeftUnionBool _ r _ _ = r
+\end{code}
+
+\begin{code}
+ instance HLeftUnionBool HFalse r l v (HCons (l,v) r)
+    where hLeftUnionBool _ r l v = HCons (l,v) r
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Illustration of deep subtyping}
+\label{A:deep}
+
+Suppose you have a class @cube@ and a subclass @cuboid@, which
+overrides one of @cube@'s methods by a version with a co-variant
+return type (as in Java 5, for example). Substitutability of cubes by
+cuboids does not require specific efforts. However, we can even coere
+a cuboid to a cube using deep subtyping, that is, a ``deep'' variation
+on App.~\ref{A:narrow}.
+
+\medskip
+
+\noindent
+Here is a test case illustrating deep narrow:
+
+\begin{code}
+ testDeep
+   = do
+	(cuboid::cuboid) <- mfix (class_cuboid (10::Int) (20::Int) (30::Int))
+	cube <- mfix (class_cube (40::Int))
+	let cuboids = [cuboid, deep'narrow cube]
+	putStrLn "Volumes of cuboids"
+        mapM_ (\cb -> handle_cuboid cb >>= print) cuboids
+\end{code}
+
+\noindent
+
+
+\noindent
+See the code distribution for the paper for the specification of
+@deep'narrow@. This operation must essentially descent into records
+and postfix all ``method returns'' by a narrow operation on the
+results.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

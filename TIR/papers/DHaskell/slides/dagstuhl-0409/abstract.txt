@@ -1,0 +1,31 @@
+Title:
+
+Preprocessing support for type-level programming in Haskell
+
+Speaker:
+
+Ralf Lämmel (Vrije Universiteit and CWI, Amsterdam)
+
+Abstract:
+
+We propose a cheap convenience layer for type-level programming in
+Haskell, such that previous encoding efforts can be eliminated. The
+convenience layer comes as a small set of simple constructs that can
+be compiled away by straightforward preprocessing. Most notably, we
+provide simple means that allow the programmer to avoid explicit
+reification of types and functions, when they need to be performed at
+the type-level.  This reification support also covers sophisticated
+programming idioms such as type equality test and type-safe cast. The
+design of the convenience layer is based on scenarios for type-level
+programming, such as applications of the HList library for statically
+typed heterogeneous collections.
+
+
+This is all joint work with
+Oleg Kiselyov (FNMO Center, Monterey, CA, USA) and
+Keean Schupke (Imperial College, London, UK)
+
+
+Related links:
+http://www.cwi.nl/~ralf/HList/
+(Strongly typed heterogeneous collections)

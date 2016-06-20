@@ -1,0 +1,59 @@
+<HTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide9.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide11.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+Type Driven Operations ...
+
+<!-- END TITLE -->
+
+</H2>
+<P>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+<LI>So far we have been dealing with operations that whilst acting on a heterogeneous list,
+are equivalent to operations on homogeneous lists. However, there are operations not possible
+on `normal' lists, those that are type driven.</LI>
+<BR />
+<LI>We have defined a group of related type driven opperations:
+<BR />
+<BR />
+<UL>
+	<LI><CODE>hOccursMany</CODE> - return all the occurances of a type</LI>
+	<LI><CODE>hOccursMany1</CODE> - return all (but at least one)</LI>
+	<LI><CODE>hOccursOpt</CODE> - return Just first occurance or Nothing</LI>
+	<LI><CODE>hOccursFst</CODE> - return first occurance of one or more</LI>
+	<LI><CODE>hOccurs</CODE> - establish there is exactly one occurance of type and return value</LI>
+</UL>
+</LI>
+<BR />
+<LI>To implement these functions we have to deal with overlapping instances, but
+as we do not require fundeps, these can be implemented on both GHC and Hugs without
+problems.</LI>
+
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+</P>
+<BR />
+</CENTER>
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

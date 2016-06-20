@@ -1,0 +1,100 @@
+Module overview
+
+Collections with operations
+
+- module HList
+  - class HList
+  - hOccursStar (type-driven filter)
+  - hOccursPlus (type-driven success-proven filter)
+  - hAppend 
+  - hQualify
+  - hUnqualify
+
+- module HBounded
+  - class HBounded
+  - hLength
+
+- module HZip (pair of lists vs. list of pairs)
+  - class HZippable ("same length")
+  - different models of zipping not really interesting
+
+- module HArray (all HNat-like index-based)
+  - hLookup
+  - hUpdateTP (type-preserving)
+  - hUpdateTC (type-changing)
+  - hDelete
+  - hLookupMaybe
+  - hProject
+  - hProjectAway
+  - hBetween (index generation)
+  - varios ops on HNat (don't belong here)
+
+- module TIP (Type-indexed products)
+  - newtype for TIPs
+  - class HTypeIndexed
+  - class HFreeType 
+  - class HBoundType
+  - class HFreeTypeStatus
+  - hOccurs1
+  - hExtend (HCons but no index clash)
+  - hAppend (lifted)
+  - hQualify (lifted)
+  - hUnqualify (lifted)
+
+- TIR (Type-indexed rows)
+  - newtype for TIRs
+  - class HTypeProxied
+  - mkTIR (construct TIR)
+  - phantom type HProxy
+  - class HType2HNat (type index to HNat index)
+  - class HTypes2HNats (TIR to HNat list)
+  - hLookup (lifted for TIPs; type-proxy based)
+  - hUpdateTC (lifted for TIPs; ...)
+  - hUpdateTP (lifted for TIPs; ...)
+  - hDelete   (lifted for TIPs; ...)
+  - hProject  (lifted for TIPs; ...)
+  - h...Away  (lifted for TIPs; ...)
+
+- TIC (Type-indexed co-products)
+  - newtype for TICs
+  - hIn
+  - hOut
+
+- TIM (Type-indexed mappings)
+  - newtype for TIMs
+  - class HDefined
+  - class HUndefined
+  - class HDefinedStatus
+  - class HSurjection
+  - class HInvertible
+  - hInvert
+  - hLookup   (lifted)
+  - hExtend   (lifted)
+  - hAppend   (lifted)
+  - hQualify  (lifted)
+  - hQualify  (lifted)
+  - hUpdateTC (lifted)
+  - hUpdateTP (lifted)
+  - hDelete   (lifted)
+  - hProject  (lifted)
+  - h...Away  (lifted)
+
+------------------------------------------------------------------------------
+
+Cutting edge type reflection
+- HType
+
+------------------------------------------------------------------------------
+
+Dangling modules as of now
+- HSet --- consider Keean's design instead
+
+------------------------------------------------------------------------------
+
+Faked dependently type programming
+- HBool 
+- HNat
+- HMaybe
+- HOrd
+
+------------------------------------------------------------------------------

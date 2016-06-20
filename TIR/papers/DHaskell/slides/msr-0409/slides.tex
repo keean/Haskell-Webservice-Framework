@@ -1,0 +1,1094 @@
+\documentclass{slides}
+
+\usepackage{times}
+\usepackage{comment}
+\usepackage{boxedminipage}
+\usepackage{alltt}
+\usepackage{graphics}
+\usepackage[usenames]{pstcol}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{ifthen}
+
+
+\newcommand{\pure}{\textsc{PURE}}
+\newcommand{\noskip}{\topsep0pt \parskip0pt \partopsep0pt}
+\newcommand{\header}[1]{{\large\scshape \color{Red} #1} \medskip }
+\newcommand{\blau}[1]{{\color{Blue} #1} \medskip }
+\newenvironment{myslide}{\begin{slide}\color{Blue}\begin{boxedminipage}{1.1\hsize}\begin{boxedminipage}{1\hsize}\color{Black}
+\vspace{-170\in}
+}{%
+\smallskip
+\end{boxedminipage}
+\end{boxedminipage}
+\end{slide}}
+
+
+\begin{document}
+
+\pagestyle{empty}
+
+
+
+%\begin{comment}
+\begin{slide}
+
+Press PgDn to start.
+
+\end{slide}
+%\end{comment}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+
+\header{
+\begin{center}
+Type-level computations in Haskell
+\end{center}
+}
+
+\vspace{200\in}
+
+\blau{Ralf L{\"a}mmel\\
+Vrije Universiteit Amsterdam\\
+Centrum voor Wiskunde en Informatica}
+
+\bigskip
+Joint work with\\
+Oleg Kiselyov, FNMO Center, Monterey, CA\\
+Keean Schupke, Imperial College, London
+
+\bigskip
+\bigskip
+
+(Subtitle: Secrets on the DHaskell preprocessor.)
+
+\bigskip
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{One motivating example}
+
+Heterogenous collections in a database API
+
+\bigskip
+
+\blau{SQL}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+SELECT key,name FROM Animal WHERE breed = 'sheep';
+\end{Verbatim}
+
+\blau{Haskell}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+selectBreed b = -- argument b for the breed
+  do r1 <- table animalTable
+     r2 <- restrict r1 (\r -> r .!. breed `SQL.eq` b)
+     r3 <- project r2 (key .*. name .*. HNil)
+     doSelect r3
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Types involved in the DB example}
+
+\blau{Reified database schema}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+type AnimalSchema =
+   Tkey   :=: Attribute AnimalId SqlInteger :*:
+   Tname  :=: Attribute String   SqlVarchar :*:
+   Tbreed :=: Attribute Breed    SqlVarchar :*:
+   Tprice :=: Attribute Float    SqlNumeric :*:
+   Tfarm  :=: Attribute FarmId   SqlInteger :*: HNil
+\end{Verbatim}
+
+\blau{Computed (say inferred) type of query}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+selectBreed :: Breed -> Query [
+     Tkey   :=: AnimalId :*:
+     Tname  :=: String   :*: HNil ]
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Another motivating example}
+
+Compile-time grammar processing
+
+\bigskip
+
+\blau{Normal datatypes to be reified}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+data Stm   = Assign Ident Exp | Sequ Stm Stm
+data Exp   = Var Ident | Zero | Succ Exp
+type Ident = String
+\end{Verbatim}
+
+{\small
+
+\blau{Opportunities}
+
+\noskip\begin{itemize}
+\item Test for properties: reducedness, first-order, BNF, ...
+\item Transformations: annotation, BNF$\leftrightarrow$EBNF, ...
+\item Generators: parsing, pretty printing, serialisation
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Plan of the talk}
+
+\begin{itemize}
+\item Examples of type-level computations in Haskell
+\item Idioms for type-level programming in Haskell
+\item The \emph{D}Haskell language extension
+\item Occasional references to other languages
+\end{itemize}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Heterogeneous collections}
+
+\blau{Weakly typed heterogeneous lists}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+type HList = [Dynamic]
+
+angus = [ toDyn (Key 42)
+        , toDyn (Name "Angus")
+        , toDyn Cow
+        , toDyn (Price 75.5) ] 
+\end{Verbatim}
+
+\blau{Type-driven computations}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+hOccursMany :: Typeable e => HList -> [e]
+hOccursMany [] = []
+hOccursMany (h:t) = case fromDynamic h of
+                     Just e  -> e : hOccursMany t
+                     Nothing -> hOccursMany t
+
+ghci-or-hugs> hOccursMany angus :: [Breed]
+[Cow]
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Sigh! Run-time checks everywhere}
+
+\blau{Return an unambiguous occurrence for the type}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small]
+ hOccurs :: Typeable e => HList -> e
+ hOccurs l = case hOccursMany l of
+              [e] -> e
+              _   -> error "hOccurs"
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Reify datatype constructors as types}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+-- Heterogeneous lists as nested tuples
+data HNil      = HNil
+data HCons e l = HCons e l
+
+-- A dedicated class
+class HList l
+instance HList HNil
+instance HList l => HList (HCons e l)
+\end{Verbatim}
+
+\medskip
+
+{\small
+
+Notice: this type allows for heterogeneous lists.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Turn function signatures into classes}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+-- A function signature
+hOccursMany :: Typeable e => HList -> [e]
+
+-- The corresponding class
+class  HList l => HOccursMany e l
+ where hOccursMany :: l -> [e]
+\end{Verbatim}
+
+\medskip
+
+{\small
+
+(Instances to be disclosed soon.)
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Typeful heterogeneous lists}
+
+\blau{Convenience notation}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+type e :*: l = HCons e l  -- type-level constructor
+e .*. l      = HCons e l  -- value-level constructor
+\end{Verbatim}
+
+\medskip
+
+\blau{Typeful animals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+type Animal =
+  Key :*: Name :*: Breed :*: Price :*: HNil
+
+angus :: Animal -- optional type declaration
+angus =  Key 42
+     .*. Name "Angus"
+     .*. Cow
+     .*. Price 75.5
+     .*. HNil
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Turn function equations into class instances}
+
+\bigskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+-- The equation for the empty input list
+hOccursMany [] = []
+
+-- The corresponding instance
+instance HOccursMany e HNil
+ where   hOccursMany HNil = []
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Turn equations into instances cont'd}
+
+\blau{The idiosyncratic value-level case for non-empty lists}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+hOccursMany (h:t) = case fromDynamic h of
+                     Just e  -> e : hOccursMany t
+                     Nothing -> hOccursMany t
+\end{Verbatim}
+
+\medskip
+
+\blau{Transposition}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+instance ( HOccursMany e l, HList l )
+      =>   HOccursMany e (HCons e l)
+ where     hOccursMany (HCons e l) = e:hOccursMany l
+\end{Verbatim}
+ 
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+instance ( HOccursMany e l, HList l )
+      =>   HOccursMany e (HCons e' l)
+ where     hOccursMany (HCons _ l) = hOccursMany l
+\end{Verbatim}
+
+\medskip
+
+{\small
+
+Note overlaps and non-linearity in the instances.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Observe type equality}
+
+\bigskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small]
+class HBool b
+   => TypeEq x y b
+    | x y -> b
+\end{Verbatim}
+
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Branch according to type-level Boolean}
+
+\bigskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small]
+instance ( TypeEq e h b
+         , HOccursManyBool b e (HCons h t)
+         )
+      =>   HOccursMany e (HCons h t)
+ where     hOccursMany l@(HCons h t) = l'
+            where b  = typeEq (head l') h 
+                  l' = hOccursManyBool b l
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Compile-time constraints as method-less classes}
+
+\bigskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+-- Check for lack of occurrence
+class HOccursNot e l
+instance HOccursNot e HNil
+instance Fail (TypeFound e) => HOccursNot e (HCons e l)
+instance HOccursNot e l     => HOccursNot e (HCons e' l)
+
+class Fail x      -- meant to fail
+data TypeFound e  -- error message
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Yeah! Compile-time checks}
+
+\blau{Return an unambiguous occurrence for the type}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+class  HOccurs e l
+ where hOccurs :: l -> e
+
+instance (HList l, HOccursNot e l)
+      =>  HOccurs e (HCons e l)
+ where    hOccurs (HCons e _) = e
+
+instance (HOccurs e l, HList l)
+      =>  HOccurs e (HCons e' l)
+ where    hOccurs (HCons _ l) = hOccurs l
+\end{Verbatim}
+
+\medskip
+
+{\small
+
+Any application of \texttt{hOccurs} is statically checked to return an
+unambiguous occurrence for the type of interest (modulo halting
+problem regarding partiality).
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Securing the weakly typed solution}
+
+\blau{Recall the value-level code}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small]
+ hOccurs :: Typeable a => HList -> a
+ hOccurs l = case hOccursMany l of
+              [x] -> Just a
+              _   -> error "hOccurs"
+\end{Verbatim}
+
+\medskip
+
+\blau{Transposition to the type-level}
+
+{\small
+
+\noskip\begin{itemize}
+\item The polymorphic list structure needs to be reified.
+\item The error string becomes an `error type'.
+\item The error case becomes a `failing instance'.
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reification of polymorphic lists}
+
+\blau{Normal list datatype}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+data List a = Nil | Cons a (List a)
+\end{Verbatim}
+
+\medskip
+
+\blau{Reified version}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+data Nil a    = Nil
+data Cons b a = Cons a (b a)
+\end{Verbatim}
+\medskip
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+class    List ( lst :: * -> * )
+instance List Nil
+instance List b => List (Cons b)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{A benchmark for dependent typing}
+
+\blau{Normal append}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+append :: [a] -> [a] -> [a]
+append [] x = x
+append (h : t) x = h : (append t x)
+\end{Verbatim}
+
+\medskip
+
+\blau{Run-time side condition}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+guardedAppend :: [a] -> [a] -> Maybe [a]
+guardedAppend lst1 lst2
+   = if length lst3 == add (length lst1) (length lst2) 
+        then Just lst3
+        else Nothing
+ where
+  lst3 = append lst1 lst2
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level guarding}
+
+\blau{Encoding in DHaskell}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small,commandchars=\\\{\}]
+guardedAppend :: [a] -> [a] -> [a]
+guardedAppend lst1 lst2 = lst3
+ where
+  lst3 = append lst1 lst2
+ \textbf{require}
+  length lst3 == add (length lst1) (length lst2) 
+\end{Verbatim}
+
+\bigskip
+
+{\small
+
+To compile away the DHaskell extension, we need to lift \texttt{[]},
+\texttt{append}, \texttt{add}, and \texttt{length}, and we need to
+define a constrained function \texttt{guardedAppend}.
+
+}
+
+\medskip
+
+(Disclaimer: notation in flux)
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Lifting value-level operations}
+
+\blau{Normal list append}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+append :: [a] -> [a] -> [a]
+append [] x = x
+append (h : t) x = h : (append t x)
+\end{Verbatim}
+
+\blau{Type-level append}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+class (List l1, List l2, List l3)
+   =>  Append l1 l2 l3 | l1 l2 -> l3
+ where append :: l1 a -> l2 a -> l3 a
+
+instance List x
+      => Append Nil x x
+ where   append Nil x = x
+
+instance Append t x t'
+      => Append (Cons t) x (Cons t')
+ where   append (Cons h t) x = Cons h (append t x)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level side condition}
+
+\blau{Turn \textbf{require} into constraints}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+guardedAppend :: ( Append lst1 lst2 lst3
+                 , Length lst1 nat1
+                 , Length lst2 nat2
+                 , Length lst3 nat3
+                 , Add nat1 nat2 nat3
+                 ) => lst1 a -> lst2 a -> lst3 a
+guardedAppend = append
+\end{Verbatim}
+
+\blau{Use type-level naturals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+data Zero
+data Succ n
+class Nat n
+instance Nat Zero
+instance Nat n => Nat (Succ n)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{From guarding to verification}
+
+\blau{Wanted!}
+
+{\tiny
+
+\[\begin{array}{l}
+\forall\,\alpha :: *.\ \forall\,l_1, l_2 :: \texttt{List}\ \alpha.\\ 
+\texttt{add}\ (\texttt{length}\ l_1)\ (\texttt{length}\ l_2) == 
+\texttt{length}\ (\texttt{append}\ l_1\ l_2)
+\end{array}\]
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+\bigskip
+\bigskip
+
+\blau{Proof by induction on \texttt{append}'s first operand}
+
+{
+
+\tiny
+
+\begin{itemize}
+%
+\item Base case: $l_1 == \texttt{Nil}$ 
+
+$\begin{array}{p{1.5in}ll}
+& & \texttt{length}\ (\texttt{append}\ \texttt{Nil}\ l_2)\\
+\mbox{(base \texttt{append})}
+& ==
+& \texttt{length}\ l_2
+\\
+\mbox{}\\
+& & \texttt{add}\ (\texttt{length}\ \texttt{Nil})\ (\texttt{length}\ l_2)\\
+\mbox{(base \texttt{length})}
+& ==
+& \texttt{add}\ \texttt{Zero}\ (\texttt{length}\ l_2)
+\\
+\mbox{(base \texttt{add})}
+& ==
+& \texttt{length}\ l_2
+\end{array}$
+
+%
+%
+%
+\item Induction step: $l_1$ is of the form $\texttt{Cons}\ a\ b$
+
+$\begin{array}{p{1.5in}ll}
+& & \texttt{length}\ (\texttt{append}\ (\texttt{Cons}\ a\ b)\ l_2)\\
+\mbox{step \texttt{append})}
+& ==
+& \texttt{length}\ (\texttt{Cons}\ a\ (\texttt{append}\ b\ l_2))
+\\
+\mbox{step \texttt{length})}
+& ==
+& \texttt{Succ}\ (\texttt{length}\ (\texttt{append}\ b\ l_2))
+\\
+\mbox{}\\
+& & \texttt{add}\ (\texttt{length}\ (\texttt{Cons}\ a\ b))\ (\texttt{length}\ l_2)\\
+\mbox{(step \texttt{length})}
+& ==
+& \texttt{add}\ (\texttt{Succ}\ (\texttt{length}\ b))\ (\texttt{length}\ l_2)
+\\
+\mbox{(step \texttt{add})}
+& ==
+& \texttt{Succ}\ (\texttt{add}\ (\texttt{length}\ b)\ (\texttt{length}\ l_2))
+\\
+\mbox{(ind.\ hypoth.)}
+& ==
+& \texttt{Succ}\ (\texttt{length}\ (\texttt{append}\ b\ l_2))
+\end{array}$
+
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Verification in DHaskell}
+
+\blau{Lists with a natural as index}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+data List <x::Nat> a
+   = Nil                      \textbf{with} x = Zero
+   | Cons a (List <y::Nat> a) \textbf{with} x = Succ y
+\end{Verbatim}
+
+\blau{A verified append on the indexed lists}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+append :: List <len1> a -> List <len2> a -> List <len3> a
+ \textbf{with} 
+  len3 == add len1 len2
+append Nil x = x
+append (Cons h t) x = Cons h (append t x)
+\end{Verbatim}
+
+\blau{Example of an impossible flaw}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+append (Cons h t) x = append t x -- does not type check
+\end{Verbatim}
+
+\medskip
+
+(Disclaimer: notation in flux)
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Encoding indexed types}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+data Nil len a    = Nil
+data Cons b len a = Cons a (b a)
+class List ( lst :: * -> * )
+instance List (Nil Zero)
+instance List (b len) => List (Cons (b len) (Succ len))
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Encoding verification conditions as class constraints}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+class ( List (l1 len1)
+      , List (l2 len2)
+      , List (l3 len3)
+      , Add len1 len2 len3
+      )
+   => Append l1 len1 l2 len2 l3 len3
+    | l1 len1 l2 len2 -> l3 len3
+ where
+  append :: l1 len1 a -> l2 len2 a -> l3 len3 a
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level programming idiom}
+
+\blau{Encoding the structural induction proof}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+instance (Nat len, List (x len))
+      =>  Append Nil Zero x len x len
+ where   
+  append Nil x = x
+
+instance Append t len x xlen t' len'
+      => Append (Cons (t len))   (Succ len)
+                x                xlen
+                (Cons (t' len')) (Succ len')
+ where
+  append (Cons h t) x = Cons h (append t x)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Where are we?}
+
+\begin{itemize}
+\item We can distinguish subsets of normal types.
+\item We can compile-time program with type equality.
+\item We can compile-time guard function applications.
+\item We can compile-time verify function definitions.
+\item We can turn reified values into normal values.
+\item Can we also go the other way around? (Yes!)
+\item Can we mix type-level and normal values? (Yes!)
+\end{itemize}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Mix type-level and normal values}
+
+\blau{Stanamic naturals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small]
+data VNat    = VZero | VSucc VNat
+data TZero   = TZero
+data TSucc n = TSucc n
+
+class Nat n
+instance Nat VNat
+instance Nat TZero
+instance Nat n => Nat (TSucc n)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Turn reified values into normal ones}
+
+\blau{Fold over type-level naturals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+class TNat n
+ where
+  onTNat :: n -> r -> (forall n'. TNat n' => n' -> r) -> r
+  
+instance TNat TZero
+ where
+  onTNat _ r _ = r
+
+instance TNat n => TNat (TSucc n)
+ where
+  onTNat (TSucc n) _ f = f n
+\end{Verbatim}
+
+\medskip
+
+\blau{Example: extraction of normal naturals}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+tn2vn :: TNat n => n -> VNat
+tn2vn tn = onTNat tn VZero (\tn' -> VSucc (tn2vn tn'))
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Process normal values as reified ones}
+
+\blau{Example: roundtrip}
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny]
+vn2tn :: VNat -> (forall n. TNat n => n -> w) -> w
+vn2tn VZero f      = f TZero
+vn2tn (VSucc vn) f = vn2tn vn (\tn -> f (TSucc tn))
+
+ghci-or-hugs> vn2tn (VSucc (VSucc VZero)) tn2vn
+VSucc (VSucc VZero)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{slide}
+
+\medskip
+
+Thank you for your attention.
+
+\medskip
+
+End of slide show.
+
+\medskip
+
+\end{slide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\end{document}

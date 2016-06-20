@@ -1,0 +1,502 @@
+\medskip
+
+\section{Basic OOHaskell programming idioms}
+\label{S:basics}
+
+We start with the basics of OO: objects as capsules of mutable data
+and methods, access control, constructor methods, self references,
+single inheritance with extension or overriding. We will focus here
+on the explanation of all technicalities that were not yet
+illustrated in the shapes example.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+% \subsection{Adoption of the OCaml tutorial}
+
+There are many OO systems based on open records, e.g., Perl, Python,
+Javascript, Lua, and OCaml. Of these, only OCaml is statically
+typed. OCaml (to be precise, its predecessor {ML-ART}) are close to
+OOHaskell in motivation, of introducing objects as a library in a
+strongly-typed functional language with inference. The implementation
+of that library and the set of features used or required are quite
+different (Sec.~\ref{S:related}), which makes the comparison with OCaml
+meaningful. Therefore, we draw many of the examples from OCaml object
+tutorial, to specifically contrast OCaml and OOHaskell code and to
+demonstrate the fact that OCaml examples are expressible in OOHaskell,
+roughly in the same syntax. We also use the OCaml object tutorial
+because it is clear, comprehensive and concise.  We are keen to mimic
+the OCaml code from the tutorial in some cases because this suggests a
+direct, local translation.
+
+Quoting from~\cite[\S\,3.1]{OCaml}:\footnote{Throughout the paper and
+the source code distribution, we took the liberty to rename some
+identifiers and to massage some subminor details while quoting
+portions of the OCaml tutorial.}
+
+\begin{quote}\itshape\small
+``The class @point@ below defines one instance variable @varX@ and two
+methods @getX@ and @moveX@. The initial value of the instance variable
+is @0@. The variable @varX@ is declared mutable, so the method @moveX@
+can change its value.''
+\end{quote}
+
+\begin{code}
+ class point =
+   object
+     val mutable varX = 0
+     method getX      = varX
+     method moveX d   = varX <- varX + d
+   end;;
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+\subsection{Objects as HList records}
+
+The transcription to Haskell starts with the declaration of all the
+labels that occur in the OCaml code. The \HList\ library readily
+offers 4 different models of labels. In all cases, labels are Haskell
+values that are distinguished by their Haskell \emph{type}. We choose
+the following model:
+%
+\begin{itemize}
+\item The value of a label is ``\undefined''.
+\item The type of a label is a \emph{proxy} for an \emph{empty} type (except ``\undefined'').
+\end{itemize}
+
+\medskip
+
+\begin{code}
+ data VarX;  varX  = proxy :: Proxy VarX 
+ data GetX;  getX  = proxy :: Proxy GetX
+ data MoveX; moveX = proxy :: Proxy MoveX
+\end{code}
+
+GHC allows us to define such empty algebraic datatypes. We note that
+simple syntactic sugar can reduce the length of these one-liners
+dramatically in case this is considered an issue.
+
+We assume the following definitions of proxies:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ data Proxy e      -- \cmt{A proxy type is an empty phantom type.}
+ proxy :: Proxy e  -- \cmt{A proxy value is just ``\undefined''.}
+ proxy = \undefined
+\end{Verbatim}
+
+The \emph{explicit} declaration of OOHaskell labels blends perfectly
+with Haskell's scoping rules and its module concept. If different
+modules with various record types want to share labels, then they have
+to agree on a declaration site that they all import. All models of
+\HList\ labels support labels as first-class citizens. In particular,
+we can pass them to functions. The ``labels as type proxies'' idea is
+the basis for defining record operations since they can thereby
+\emph{dispatch} on labels in type-class-based functionality. We refer
+to the HList paper for details~\cite{HLIST-HW04}.
+
+\noindent
+The earlier @point@ class is defined as the following Haskell value:
+
+\begin{code}
+ point = 
+   do
+      x <- newIORef 0
+      returnIO
+        $  varX  .=. x
+       .*. getX  .=. readIORef x
+       .*. moveX .=. (\d -> do modifyIORef x ((+) d))
+       .*. emptyRecord
+\end{code}
+%%% $
+\noindent
+Note how the Haskell code mimics the OCaml code. We use Haskell's
+@IORefs@ to model mutable variables. (We do not use any magic of the
+IO monad. We could as well use the simpler ST monad, which is very
+well formalised~\cite{LPJ95}. In fact, the code distribution for the
+paper explores this option, too.) The @point@ class stands revealed as
+a monadic @do@ sequence that first creates an @IORef@ for the mutable
+variable, and then returns a record for the new @point@ object.  The
+record provides access to the public methods of the object and to the
+@IORefs@ for public mutable variables.
+
+Let's now instantiate the @point@ class and invoke some methods. To
+provide a reference, we include the log of an OCaml session, which
+shows some inputs and the responses of the OCaml interpreter:
+
+\begin{code}
+ let p = new point;;
+ val p : point = <obj>
+ p#getX;;
+ - : int = 0
+ p#moveX 3;;
+ - : unit = ()
+ p#getX;;
+ - : int = 3
+\end{code}
+%% $
+\noindent
+In Haskell, we capture this program in a monadic @do@ sequence because
+method invocations can involve side effects. Hence:
+
+\begin{code}
+ myFirstOOP =
+  do
+     p <- point -- no need for new!
+     p # getX >>= Prelude.print
+     p # moveX $ 3
+     p # getX >>= Prelude.print
+\end{code}
+%%% $
+\noindent
+The following Haskell session agrees with the OCaml version:
+
+\begin{code}
+ ghci> myFirstOOP
+ 0
+ 3
+\end{code}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+\subsection{Access control}
+
+We note that the variable @varX@ is public~---~just as in the OCaml
+code. Hence, we can manipulate @varX@ directly:
+
+\begin{code}
+ mySecondOOP =
+  do 
+     p <- point
+     writeIORef (p # varX) 42
+     p # getX >>= Prelude.print
+ ghci> mySecondOOP
+ 0
+ 42
+\end{code}
+
+\noindent
+Making the mutable variable private is no problem at all. We simply do
+not provide direct access to the IORef in the record, i.e., we omit
+the variable @varX@. (This was illustrated in the shapes example.) 
+Using the delete operation for record components, we can also restrict
+access after the fact.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+\subsection{Tailored object construction}
+
+Quoting from~\cite[\S\,3.1]{OCaml}:
+
+\begin{quote}\itshape\small
+``The class @point@ can also be abstracted over the initial value of
+@varX@.  The parameter @x_init@ is, of course, visible in the whole
+body of the definition, including methods. For instance, the method
+@getOffset@ in the class below returns the position of the object
+relative to its initial position.''
+\end{quote}
+
+\begin{code}
+ class para_point x_init =
+   object
+     val mutable varX = x_init
+     method getX      = varX
+     method getOffset = varX - x_init
+     method moveX d   = varX <- varX + d
+   end;;
+\end{code}
+
+\noindent
+Non-parameterised classes are represented as computations in Haskell.
+Consequently, parameterised classes are represented as monadic
+functions (i.e., functions that return computations). Hence, the
+parameter @x_init@ ends up as a plain function argument:
+
+\begin{code}
+ para_point x_init
+   = do
+        x <- newIORef x_init
+        returnIO
+          $  varX      .=. x
+         .*. getX      .=. readIORef x
+         .*. getOffset .=. queryIORef x (\v -> v - x_init)
+         .*. moveX     .=. (\d -> modifyIORef x ((+) d))
+         .*. emptyRecord
+\end{code}
+%%% $
+\medskip
+
+Quoting from~\cite[\S\,3.1]{OCaml}:
+
+\begin{quote}\itshape\small
+``Expressions can be evaluated and bound before defining the object
+body of the class. This is useful to enforce invariants. For instance,
+points can be automatically adjusted to the nearest point on a grid,
+as follows:''
+\end{quote}
+
+\begin{code}
+ class adjusted_point x_init =
+   let origin = (x_init / 10) * 10 in
+   object
+     val mutable varX = origin
+     method getX      = varX
+     method getOffset = varX - origin
+     method moveX d   = varX <- varX + d
+   end;;
+\end{code}
+
+\noindent
+This ability is akin to functionality in constructor methods known
+from mainstream OO languages. As suggested by OCaml tutorial, we use
+local lets to carry out the constructor computations ``prior'' to
+returning the constructed object:
+
+\begin{code}
+ adjusted_point x_init
+   = do
+        let origin = (x_init `div` 10) * 10
+        x <- newIORef origin
+        returnIO
+          $  varX      .=. x
+         .*. getX      .=. readIORef x
+         .*. getOffset .=. queryIORef x (\v -> v - origin)
+         .*. moveX     .=. (\d -> modifyIORef x ((+) d))
+         .*. emptyRecord
+\end{code}
+%%% $
+\noindent
+(The fact whether such lets are computed \emph{at all} depends, of
+course, on the strictness of the program due to Haskell's lazyness. So
+``prior'' is not meant in a temporal sense.)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+\subsection{Open recursion}
+
+Another basic tenet of OO is to send messages to `self'.  One
+\emph{could} simulate such selfish messages by implementing methods as
+regular mutually recursive functions. Sending a message to `self' will
+then clearly look differently than sending a message to another
+object. A more important problem with that naive solution is the
+closed nature of the method recursion. Overriding methods in
+subclasses will not affect this recursion, drastically limiting
+subtype polymorphism.
+
+So we need to bind `self' explicitly. Consequently, object templates
+need to be in the style of `open recursion': they take self and
+construct (some part of) self.
+
+Quoting from~\cite[\S\,3.2]{OCaml}:
+
+\begin{quote}\itshape\small
+``A method or an initialiser can send messages to self (that is, the
+current object). For that, self must be explicitly bound, here to the
+variable @s@ (@s@ could be any identifier, even though we will often
+choose the name @self@.) ... Dynamically, the variable @s@ is bound at
+the invocation of a method. In particular, when the class
+@printable_point@ is inherited, the variable @s@ will be correctly
+bound to the object of the subclass.''
+\end{quote}
+
+\begin{code}
+ class printable_point x_init =
+   object (s)
+     val mutable varX = x_init
+     method getX      = varX
+     method moveX d   = varX <- varX + d
+     method print = print_int s#getX
+   end;;
+\end{code}
+
+\noindent
+Again, this OCaml code is transcribed to Haskell very directly. A
+noteworthy and appreciated deviation is that @s@ ends up as just an
+\emph{ordinary} argument of the monadic function for constructing
+printable point objects:
+
+\begin{code}
+ printable_point x_init s =
+   do
+      x <- newIORef x_init
+      returnIO
+        $  varX  .=. x
+       .*. getX  .=. readIORef x
+       .*. moveX .=. (\d -> modifyIORef x ((+) d))
+       .*. print .=. ((s # getX ) >>= Prelude.print)
+       .*. emptyRecord
+\end{code}
+%%% $
+\noindent
+Object creation and invocation looks as follows in OCaml:
+
+\begin{code}
+ let p = new printable_point 7;;
+ val p : printable_point = <obj>
+ p#moveX 2;;
+ - : unit = ()
+ p#print;;
+ 9- : unit = ()
+\end{code}
+
+\noindent
+We note that @s@ does not show up in the OCaml line that constructs a
+point @p@ with the @new@ construct, but it is clear that the recursive
+knot is tied right there. The Haskell code makes this really explicit.
+We do not use any special @new@ construct. We simply use the (monadic)
+fix-point operation as is:
+
+\begin{code}
+ mySelfishOOP =
+   do
+      p <- mfix (printable_point 7)
+      p # moveX $ 2
+      p # print
+\end{code}
+%%% $
+\begin{code}
+ ghci> mySelfishOOP
+ 9
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+\subsection{Single inheritance with extension}
+
+Quoting from~\cite[\S\,3.7]{OCaml}:
+
+\begin{quote}\itshape\small
+``We illustrate inheritance by defining a class of colored points that
+inherits from the class of points. This class has all instance
+variables and all methods of class @point@, plus a new instance
+variable @color@, and a new method @getColor@.''
+\end{quote}
+
+\begin{code}
+ class colored_point x (color : string) =
+   object
+     inherit point x
+     val color = color
+     method getColor = color
+   end;;
+\end{code}
+
+\begin{code}
+ let p' = new colored_point 5 "red";;
+ val p' : colored_point = <obj>
+\end{code}
+
+\begin{code} 
+ p'#getX, p'#getColor;;
+ - : int * string = (5, "red")
+\end{code}
+
+\noindent
+(We only consider width subtyping at this stage.)  The following
+Haskell version does not refer to a special @inherit@ construct. We
+rather compose a computation. That is, to construct a colored point,
+we instantiate the superclass while maintaining open recursion, and
+the obtained record is extended by the new method:
+
+\begin{code}
+ colored_point x_init (color::String) self =
+   do
+        p <- printable_point x_init self
+        returnIO $ getColor .=. (returnIO color) .*. p
+ myColoredOOP =
+   do
+      p' <- mfix (colored_point 5 "red")
+      x  <- p' # getX
+      c  <- p' # getColor
+      Prelude.print (x,c)
+ ghci>  myColoredOOP
+ (5,"red")
+\end{code}
+%%% $
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+\subsection{Single inheritance with overriding}
+
+We can also override methods and refer to the implementation of a
+method in the superclass (akin to the @super@ construct in OCaml and
+other languages). This is illustrated with a subclass of
+@colored_point@ whose @print@ method is more informative:
+
+\begin{code}
+ colored_point' x_init color self =
+   do
+      super <- colored_point x_init color self
+      return $  print .=. (
+              do putStr "so far - "; p # print
+                 putStr "color  - "; Prelude.print color )
+            .<. p
+\end{code}
+%%% $
+\noindent
+The first step in the monadic @do@ sequence constructs an
+old-fashioned colored point, and binds it to @super@ for further
+reference. (Note: @super@ is just a variable not an extra construct.) 
+The second step in the monadic @do@ sequence returns @super@ but
+updated as far as the @print@ method is concerned. The \HList\
+operation ``@.<.@'' denotes type-preserving record update as opposed
+to record extension. This operation ``@.<.@'' rather than the familiar
+``@.*.@'' makes the overriding explicit (as it is in |C#|, for
+example). We could also use a more hybrid record operation, which
+carries out extension in case the given label does not yet occur in
+the given record, while it falls back to type-preserving update
+otherwise. The latter operation would let us model the implicit
+overriding in C++ and Java.
+
+Here is a demo of inheritance with override:
+
+\begin{code}
+ myOverridingOOP =
+   do
+      p  <- mfix (colored_point' 5 "red")
+      p  # print
+ ghci> myOverridingOOP
+ so far - 5
+ color  - "red"
+\end{code}

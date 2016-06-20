@@ -1,0 +1,58 @@
+#!/bin/sh
+
+PIDFILE=/var/tmp/hserver.pid
+ODBCINSTINI=/etc/odbcinst.ini
+ODBCINI=/etc/odbc.ini
+HLIBPATH=/usr/local/lib/ghc-6.2
+export ODBCINITINI ODBCINI HLIBPATH PIDFILE
+
+# echo 0 >/proc/sys/net/ipv4/tcp_ecn
+
+case "$1" in
+	start)
+		if [ -r $PIDFILE ]
+		then
+			pid=`cat $PIDFILE`
+			run=`ps x | grep "^[ ]*$pid"`
+			if [ "$run" != "" ]
+			then
+				echo "Server already running"
+			else
+				mv server.log server.log.0
+				./hserver server.conf &> server.log &
+				echo "$!" > $PIDFILE
+			fi
+		else
+			mv server.log server.log.0
+			./hserver server.conf &> server.log &
+			echo "$!" > $PIDFILE
+		fi
+		;;
+
+	stop)
+		if [ -r $PIDFILE ]
+		then
+			pid=`cat $PIDFILE`
+			run=`ps x | grep "^[ ]*$pid"`
+			if [ "$run" != "" ]
+			then
+				kill -1 `cat $PIDFILE`
+			else
+				echo "Server not running (PID not in use)"
+			fi
+			rm -f $PIDFILE
+		else
+			echo "Server not running (no PID file)"
+		fi
+		;;
+
+	restart)
+		$0 stop
+		$0 start
+		;;
+
+	*)
+		echo "Usage: $0 (start|stop|restart)"
+		;;
+
+esac

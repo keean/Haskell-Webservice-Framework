@@ -1,0 +1,125 @@
+The above solution works with GHC (at least since
+version 5.4 until today), but not with hugs. While the instances
+@TypeNotEq x x@ and @TypeNotEq x y@ are ordered in the sense of
+overlapping, the overloading resolution of hugs would still consider
+the instance @TypeNotEq x y@ even for the case @x@ $=$ @y@. It appears
+that hugs treats generic instances in a special way, while normally
+committment to an instance entirely based on the selection of the most
+specific instance in the sense of substitution on instance heads.
+
+We can harmonise the fine difference between ghc and hugs by
+accommodating more matching. That is, we perform the comparison of
+types @x@ and @y@ by wrapping the type @x@ in @W x@:
+
+\begin{code}
+  data W x = W x
+  class Fail a
+  class TypeNotEq x y
+  instance TypeNotEq' (W x) y => TypeNotEq x y
+  class TypeNotEq' x y
+  instance Fail () => TypeNotEq' (W x) x
+  instance TypeNotEq' x y
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+The immediate horror of the dynamics approach is that we are faced
+with a potentially invasive type ``@Dynamics@'', which might just end
+up everywhere implying an almost untyped style of
+programming. Intensional polymorphism~\cite{HM95,Weirich02} promises
+betterment. That is, we can basically keep types as is, and we can
+observe type structure or type equivalence on the immediate types
+without detouring to dynamics. However, the heteregenouty of our
+collections requires from us to use existential types to hide the
+types of the various elements. So we end up with an intensionally
+type-polymorphic encoding that is not so much different from using
+dynamics:
+
+\begin{code}
+type HList    = [Castable]
+data Castable = forall a. Typeable a => Castable a
+\end{code}
+
+The data type @Castable@ basically stands for $\exists
+\alpha. \alpha$.  The class constraint @Typeable@ allows us to use
+type-safe @cast@~\cite{LPJ03} to compromise the elements type. Here is
+the convenience layer that we also defined for dynamics.
+
+\begin{code}
+-- Extend a heterogeneously typed list at the front
+addHList :: Typeable a => a -> HList -> HList
+addHList a l = (Castable a:l)
+\end{code}
+
+\begin{code}
+-- Extract a specifically typed head if possible
+headHList :: Typeable a => HList -> Maybe a
+headHList [] = Nothing
+headHList (Castable a:_) = cast a
+\end{code}
+
+It is easy to see that we can implement dynamics as follows:
+
+\begin{code}
+type Dynamic  = Castable
+toDyn         = Castable
+fromDynamic x = case x of (Castable x) -> cast x
+\end{code}
+
+So we got rid of the opaqueness of @Dynamic@; we gained the
+existential type for @Castable@; we do not suffer a CWA. Nevertheless,
+heteregenously typed collections are still too untyped.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+Oleg regarding NE: Of course it can be done -- not generically, just
+by enumerating all possible pairs of types... (it's enough to
+concentrate on the top-level constructors). The other approach is to
+use Dynamics or just Typeable. I know, both approaches are close to
+being revolting. The problem is that Haskell classes are open. To have
+a meaningful negation, one has to have a closed world. It seems that
+having a special export list declaration ``close(ClassName)'' will
+solve the problem of definability of NE (quite useful, btw) and the
+problem of taking the constraints into account when resolving
+overlapping instances. Perhaps it's worth mentioning that in the
+paper: it's meant for the Haskell workshop, where suggestions on new
+features of Haskell may be entertained.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+\section{Encoding properties}
+
+\begin{description}
+%
+\item[open-world]
+%
+\item[nominal]
+%
+\item[precise]
+%
+\item[pure]
+%
+\item[generic]
+%
+\item[direct]
+%
+\end{description}
+
+

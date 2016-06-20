@@ -1,0 +1,1627 @@
+\documentclass{slides}
+
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{graphics}
+\usepackage[usenames]{pstcol}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{ifthen}
+\usepackage{comment}
+\usepackage{boxedminipage}
+
+\begin{comment}
+\newenvironment{myslide}{\begin{slide}\color{Blue}\begin{boxedminipage}{1.1\hsize}\begin{boxedminipage}{1\hsize}\color{Black}
+\vspace{-170\in}
+}{%
+\smallskip
+\end{boxedminipage}
+\end{boxedminipage}
+\end{slide}}
+\end{comment}
+\begin{comment}
+\newenvironment{myslide}{\begin{slide}
+}{%
+\end{slide}}
+\end{comment}
+\newenvironment{myslide}{\begin{slide}\color{White}\begin{boxedminipage}{1.1\hsize}\color{Black}
+\vspace{-170\in}
+}{%
+\smallskip
+\end{boxedminipage}
+\end{slide}}
+\newcommand{\almostnoskip}{\topsep1pt \parskip1pt \partopsep1pt}
+\newcommand{\negskip}{\vspace{-50\in}}
+\newcommand{\noskip}{\topsep1pt \parskip1pt \partopsep1pt}
+\newcommand{\littleskip}{\topsep8pt \parskip8pt \partopsep8pt}
+\newcommand{\header}[1]{{\large \color{Red} #1}}
+\newcommand{\bang}[1]{{\color{Blue} \mytextbf{#1}}}
+\newcommand{\inp}[1]{{\color{Brown} \mytextbf{#1}}}
+\newcommand{\out}[1]{{\color{Black} \mytextbf{#1}}}
+\newcommand{\blau}[1]{{\vspace{-50\in}\normalsize \color{Blue} #1}}
+\newcommand{\cod}{c}
+\newcommand{\myforall}{\ensuremath{\forall}}
+\newcommand{\HList}{\textsc{HList}}
+\newcommand{\undefined}{\ensuremath{\bot}}
+\newcommand{\farr}{\ensuremath{\to}}
+\newcommand{\larr}{\ensuremath{\leftarrow}}
+\newcommand{\carr}{\ensuremath{\Rightarrow}}
+\renewcommand{\qquad}{\hspace{40\in}}
+\newcommand{\flc}{$\=$}
+\newcommand{\lc}{$\>$}
+\newcommand{\alphaq}{\alpha'}
+\newcommand{\sforall}{\overline{\forall}}
+\newcommand{\strafunski}{\textit{\textsf{Strafunski}}}
+\newcommand{\drift}{\emph{DrIFT}}
+\newlength{\basewidth}
+\newlength{\topwidth}
+\newcommand{\superimpose}[2]{%
+  \settowidth{\basewidth}{#1}%
+  \settowidth{\topwidth}{#2}%
+  \ifthenelse{\lengthtest{\basewidth > \topwidth}}%
+    {\makebox[0pt][l]{#1}\makebox[\basewidth]{#2}}%
+    {\makebox[0pt][l]{#2}\makebox[\topwidth]{#1}}%
+}
+\newcommand{\myprompt}{ghci\ensuremath{>}}
+\newcommand{\mybar}{\ensuremath{|}}
+\newcommand{\mylbrace}{\ensuremath{\{}}
+\newcommand{\myrbrace}{\ensuremath{\}}}
+\newcommand{\mytextbf}[1]{\texttt{\textbf{#1}}}
+
+\begin{document}
+
+\pagestyle{empty}
+
+
+
+\begin{comment}
+\begin{slide}
+ 
+Press PgDn to start.
+ 
+\end{slide}
+\end{comment}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+
+\begin{center}
+\header{{\itshape\normalsize \textbf{Strongly Typed Heterogeneous Collections}}}
+\end{center}
+
+\bigskip
+\bigskip
+
+{\small
+
+\blau{
+
+Oleg Kiselyov, FNMO Center, Monterey, CA\\
+Ralf L{\"a}mmel, VUA \& CWI, Amsterdam\\
+Keean Schupke, Imperial College, London
+
+}
+
+
+\bigskip
+
+Subtitles:
+
+{\littleskip\begin{itemize}
+\item A useful application of type-class programming
+\item Progress regarding the quest for better Haskell records
+\item Programmable type systems in Haskell
+\end{itemize}}
+
+}
+
+\bigskip
+\bigskip
+
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Main deliverable: the \HList\ library}
+
+{\small
+
+\littleskip\begin{itemize}
+\item Typeful heterogeneous lists~---~the base type
+\item Heterogeneous arrays~---~access via Church numerals
+\item Type-driven access operations
+\item TIPs~---~Type-Indexed Products
+\item TICs~---~Type-Indexed Co-products
+\item Extensible records~---~different models available
+\item Variants
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Application opportunities}
+
+{\small
+
+\littleskip\begin{itemize}
+\item Symbol tables with different entries
+\item XML processing~---~view content as nested collection
+\item DB access~---~rows are heterogenous lists
+\item An advanced object system
+\item Keyword arguments and polyvariadic functions
+\item Typeful foreign-function interfaces
+\item Grammar processing
+\item Type-indexed datatypes
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{\HList's API}
+
+\vspace{-66\in}
+
+\blau{Heterogeneous lists}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+hHead   :: HHead l h  \carr l \farr h
+hTail   :: HTail l l' \carr l \farr l'
+hAppend :: HAppend l l' l'' \carr l \farr l' \farr l''
+hFoldr  :: HFoldr f v l r \carr f \farr v \farr l \farr r
+...
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{\HList's API}
+
+\vspace{-66\in}
+
+\blau{Heterogeneous arrays}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hLookupByHNat   :: HLookupByHNat n l e     
+                 \carr n \farr l \farr e
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hDeleteAtHNat   :: HDeleteAtHNat n l l'    
+                 \carr n \farr l \farr l'
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hUpdateAtHNat   :: HUpdateAtHNat n e l l'  
+                 \carr n \farr e \farr l \farr l'
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hProjectByHNats :: HProjectByHNats ns l l' 
+                 \carr ns \farr l \farr l'
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hSplitByHNats   :: HSplitByHNats' ns r l' l'' 
+                 \carr ns \farr l \farr (l', l'')
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{\HList's API}
+
+\vspace{-66\in}
+
+\blau{Type-driven access}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+  hOccursMany  :: HOccursMany e l  \carr l \farr [e]
+  hOccursMany1 :: HOccursMany1 e l \carr l \farr (e, [e])
+  hOccursOpt   :: HOccursOpt e l   \carr l \farr Maybe e
+  hOccursFst   :: HOccursFst e l   \carr l \farr e
+  hOccurs      :: HOccurs e l      \carr l \farr e
+  ...
+\end{Verbatim}
+
+\vspace{-66\in}
+
+\blau{Layered library}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ -- Map type to index in a list
+ class HNat n \carr HType2HNat e l n | e l \farr n
+\end{Verbatim}
+
+{
+
+\small
+
+Use array-like operations to implement type-based operations.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Plan of the talk}
+
+{\small
+
+\littleskip\begin{itemize}
+\item Recall pre-\HList\ (say weakly-typed) situation 
+\item Reify list structure
+\item Implement type-driven access operations
+\item Address issues of overlapping instances
+\item Details of extensible records
+\item Details of type-indexed products
+\item Handle subtyping
+\item Idioms for type annotation and improvement
+\item Disclose type-level type-safe cast etc.
+\end{itemize}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Weakly typed heterogeneous lists}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ type HList    = [Castable]
+ data Castable = \myforall x. Typeable x \carr Castable x 
+ unCastable :: Typeable x \carr Castable \farr Maybe x
+ unCastable (Castable x) = cast x
+\end{Verbatim}
+
+\vspace{-66\in}
+
+\blau{The weakly typed cow Angus}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ angus = [ Castable (Key 42)
+         , Castable (Name "Angus")
+         , Castable Cow
+         , Castable (Price 75.5) ] 
+\end{Verbatim}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ newtype Key     = Key Integer
+ newtype Name    = Name String
+ data    Breed   = Cow | Sheep
+ newtype Price   = Price Float
+ data    Disease = BSE | FM
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Sufficiently typed type-driven access}
+
+\blau{Look up all elements of a given type}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hOccursMany :: Typeable a \carr HList \farr [a]
+ hOccursMany [] = []
+ hOccursMany (h:t)
+   = case unCastable h of
+       Just a  \farr a : hOccursMany t
+       Nothing \farr hOccursMany t
+\end{Verbatim}
+
+\vspace{-66\in}
+
+\blau{Demo}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ \myprompt \inp{hOccursMany angus :: [Breed]}
+ \out{[Cow]}
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Insufficiently typed type-driven access}
+
+\blau{Unambiguous look-up}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hOccurs :: Typeable a \carr HList \farr Maybe a
+ hOccurs hl = case hOccursMany hl of
+               [x] \farr Just x
+               _   \farr Nothing
+\end{Verbatim}
+
+\vspace{-66\in}
+
+\blau{Demo~---~we are lucky}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ \myprompt \inp{hOccurs angus :: Maybe Breed}
+ \out{Just Cow}
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Strongly typed heterogeneous lists}
+
+\vspace{-66\in}
+
+\blau{The strongly typed cow Angus}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ angus =  Key 42
+      .*. Name "Angus"
+      .*. Cow
+      .*. Price 75.5
+      .*. HNil
+\end{Verbatim}
+
+\vspace{-66\in}
+
+\blau{Lists as nested, binary, right-associative products}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ data  HNil      = HNil
+ data  HCons e l = HCons e l
+ type  e :*: l   = HCons e l
+       e .*. l   = HCons e l
+ class HList
+ instance HList HNil
+ instance HList l \carr HList (HCons e l)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level \emph{hOccursMany}}
+
+\vspace{-77\in}
+
+\blau{Signature $\leadsto$ class}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class  HOccursMany e l
+  where hOccursMany :: l \farr [e]
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{``\emph{[]}'' equation $\leadsto$ \emph{HNil} instance}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance HOccursMany e \textbf{HNil}
+  where   hOccursMany _ = []
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Type case $\leadsto$ overlapping instances}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance HOccursMany e l
+       \carr \textbf{HOccursMany e (HCons e l)}
+  where hOccursMany (HCons e l) = e : hOccursMany l
+
+ instance HOccursMany e l
+       \carr \textbf{HOccursMany e (HCons e' l)}
+  where hOccursMany (HCons _ l) = hOccursMany l
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Unambiguous type-driven look-up}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,commandchars=\\\{\}]
+ class  HOccurs e l
+  where hOccurs :: l \farr e  
+\end{Verbatim}
+
+\bigskip
+
+Challenges
+
+\begin{itemize}
+\item Documentation of type errors
+\item Test for absence of type
+\end{itemize}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Unambiguous type-driven look-up (cont'd)}
+
+\vspace{-77\in}
+
+\blau{The \emph{HNil} instance for type-error documentation}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance Fail (TypeNotFound e) \carr HOccurs e HNil
+  where hOccurs = \undefined
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{A type-level error code}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ data TypeNotFound e -- no values, no operations! 
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Any Prelude should have it!}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class Fail x -- no methods, no instances!
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Demo}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ \myprompt \inp{hOccurs (HCons True HNil) :: Int}
+ \out{No instance for (\textbf{Fail (TypeNotFound Int)})}
+\end{Verbatim}
+
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Unambiguous type-driven look-up (cont'd)}
+
+\vspace{-77\in}
+
+\blau{`Type found' instance}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance \textbf{HOccursNot e l} \carr HOccurs e (HCons e l)
+  where hOccurs (HCons e _) = e
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{`Type not yet found' instance}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance HOccurs e l \carr HOccurs e (HCons e' l)
+  where hOccurs (HCons _ l) = hOccurs l
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Unambiguous type-driven look-up (cont'd)}
+
+\vspace{-77\in}
+
+\blau{A class for testing the absence of a type}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ data TypeFound e     -- for a failure instance
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HOccursNot e l -- no methods!
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance HOccursNot e HNil
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance HOccursNot e l
+       \carr HOccursNot e (HCons e' l)
+\end{Verbatim}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance Fail (TypeFound e)
+       \carr HOccursNot e (HCons e l)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Let's try to get rid of overlapping}
+
+\blau{Why?}
+
+\medskip
+
+\begin{itemize}
+\item Overlapping instances generally debated
+\item Overlapping + functional dependencies problematic
+\item Lazy instance selection required
+\item Weak correspondence value vs. type level
+\end{itemize}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level \emph{hOccurs}~---~with type equality}
+
+\vspace{-77\in}
+
+\blau{One \emph{HCons} instance}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance ( TypeEq e e' b
+          , \textbf{HOccursBool} b e (HCons e' l) 
+          )
+            \carr HOccurs e (HCons e' l)
+  where
+   hOccurs (HCons e' l) = e
+    where
+     e = hOccursBool b (HCons e' l)
+     b = typeEq e e'
+\end{Verbatim}
+
+{\small
+
+Case-discriminate on type-level Booleans in \emph{HOccursBool}.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-level \emph{hOccurs}~---~with cast}
+
+\vspace{-77\in}
+
+\blau{Type-level maybies}
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HMaybe (hmaybe :: * \farr *)
+ instance HMaybe HNothing
+ instance HMaybe HJust
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{One \emph{HCons} instance}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance ( Cast e' m e
+          , \textbf{HOccursMaybe} m e l 
+          )
+            \carr HOccurs e (HCons e' l)
+  where
+   hOccurs (HCons e' l) = hOccursMaybe (cast e') l
+\end{Verbatim}
+
+{\small
+
+Case-discriminate on type-level maybies in \emph{HOccursMaybe}.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Intermediate summary}
+
+{\small
+
+We can treat nested products like lists and arrays.
+
+We can handle all kinds of type-driven access operations.
+
+We can get rid of overlapping instances.
+
+We have to disclose classes \emph{TypeEq} and \emph{Cast}.
+
+Verbosity can be attacked by simple preprocessing.
+
+\bigskip
+\bigskip
+
+Let's do extensible records now.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Haskell's nonextensible records}
+
+\vspace{-66\in}
+
+\blau{Unpriced cows get stuck}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\!\?]
+ data Unpriced = Unpriced { key   :: Integer
+                          , name  :: String
+                          , breed :: Breed }
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\!\?]
+ unpricedAngus = Unpriced { key    = 42
+                          , name   = "Angus"
+                          , breed  = Cow }
+\end{Verbatim}
+
+\vspace{-66\in}
+
+\blau{Demo~---~not much is feasible}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\!\?]
+ \myprompt \inp!breed unpricedAngus?
+ \out!Cow?
+ \myprompt \inp!unpricedAngus { breed = Sheep }?
+ \out!Unpriced{key=42,name="Angus",breed=Sheep}?
+\end{Verbatim}
+
+{\small
+
+No extensibility~---~unless we use polymorphic dummy fields.\\
+No reuse of labels. Neither can we treat labels as data.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{\HList's extensible records}
+
+\vspace{-77\in}
+
+\blau{Record labels live in namespaces}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ data FootNMouth = FootNMouth  -- a namespace
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Record labels are values}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ key   = firstLabel FootNMouth "key"
+ name  = nextLabel  key        "name"
+ breed = nextLabel  name       "breed"
+ price = nextLabel  breed      "price"  
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{The unpriced cow Angus who won't get stuck}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ unpricedAngus =  key    .=. (42::Integer)
+              .*. name   .=. "Angus"
+              .*. breed  .=. Cow
+              .*. emptyRecord
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{\HList's extensible records (cont'd)}
+
+\vspace{-77\in}
+
+\blau{\emph{show} looks good.}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\!\?]
+ \myprompt \inp!unpricedAngus?
+ Record{key=42,name="Angus",breed=Cow}
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Selection works fine.}
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\|\?]
+ \myprompt \inp|unpricedAngus .!. breed?
+ \out|Cow?
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Update works fine.}
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\!\?]
+ \myprompt \inp!unpricedAngus .@. breed .=. Sheep?
+ \out!Record{key=42,name="Angus",breed=Sheep}?
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Finally, extensions works, too.}
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\!\?]
+ \myprompt \inp!price .=. 8.8 .*. unpricedAngus?
+ \out!Record{price=8.8,key=42,name="Angus",breed=Cow}?
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{One model of extensible records}
+
+\vspace{-77\in}
+
+\blau{Labels using type-level naturals}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ data HNat x \carr Label x ns = Label x ns String
+ firstLabel = Label hZero
+ nextLabel (Label x ns _) = Label (hSucc x) ns
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Records as maps from labels to values}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ newtype Record r = Record r
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ mkRecord :: (HZip ls vs r, HLabelSet ls) \carr r \farr Record r
+ mkRecord = Record
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Helper functionality}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\!\?]
+ class HZip x y l | x y \farr l, l \farr x y
+  where hZip :: x \farr y \farr l
+        hUnzip :: l \farr (x,y)
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ class HLabelSet ls -- no label occurs twice
+ class HBool b \carr HMember e l b | e l \farr b
+ class HBool b \carr HEq x y b | x y \farr b
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance HEq x x' b \carr HEq (Label x ns) (Label x' ns) b
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Access operations for extensible records}
+
+\vspace{-66\in}
+
+\blau{Deletion}
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ (Record r) .-. l = Record r'
+   where
+    (ls,vs) = hUnzip r
+    n       = hFind l ls -- uses HEq on labels
+    ls'     = hDeleteAtHNat n ls
+    vs'     = hDeleteAtHNat n vs
+    r'      = hZip ls' vs'
+\end{Verbatim}
+
+\vspace{-66\in}
+
+\blau{Rename}
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ hRenameLabel l l' r = r'' where
+   v   = r  .@. l        -- look up by label
+   r'  = r  .-. l        -- delete at label
+   r'' = l' .=. v .*. r' -- re-add component
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{\HList's type-indexed products}
+
+\vspace{-77\in}
+
+\blau{Angus goes tipy}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ \myprompt \inp{let myTipyCow = TIP angus}
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Sad Angus suffers BSE now}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ \myprompt \inp{BSE .*. myTipyCow}
+ \out{TIP (HCons BSE ...)}
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Angus is really a cow}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ \myprompt \inp{Sheep .*. myTipyCow}
+ \out{No instance for (Fail (TypeFound Breed))}
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The implementation of TIPs}
+
+\vspace{-77\in}
+
+\blau{Use a newtype to record TIP status}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ newtype TIP l  = TIP l -- to be constrained
+ unTIP  (TIP l) = l
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ mkTIP :: HTypeIndexed l \carr l \farr TIP l
+ mkTIP = TIP
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{The TIP constraint}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HTypeIndexed l
+ instance HTypeIndexed HNil
+ instance ( HOccursNot e l
+          , HTypeIndexed l
+          )
+           \carr HTypeIndexed (HCons e l)
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Subtyping? Here we go.}
+
+\vspace{-77\in}
+
+\blau{Subtyping for TIPs via occurrence check}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ class SubType l l'
+ instance SubType (TIP l) (TIP HNil)
+ instance ( HOccurs e l
+          , SubType (TIP l) (TIP l')
+          )
+            \carr SubType (TIP l) (TIP (HCons e l'))
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Subtyping for records via projection}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance ( HZip ls vs r'
+          , HProjectByLabels ls (Record r) (Record r')
+          )
+            \carr SubType (Record r) (Record r')
+\end{Verbatim}
+
+{\small
+
+Guess what the definition of type equality is.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{An idiom for constraint annotation}
+
+\vspace{-77\in}
+
+\blau{The verbose way}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ animalKey :: ( SubType l (TIP Animal) -- extra
+              , HOccurs Key l          -- implied
+              ) \carr l \farr Key
+ animalKey = hOccurs
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{The concise way}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ animalKey l = hOccurs (animalish l) :: Key
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ animalish :: SubType l (TIP Animal) \carr l \farr l
+ animalish = id
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Demo}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ \myprompt \inp{animalKey myTipyCow}
+ \out{Key 42}
+ \myprompt animalKey (Key 42 .*. emptyTIP)
+ \out{No instances for (Fail (TypeNotFound Price),}
+ \out{                  Fail (TypeNotFound Breed),}
+ \out{                  Fail (TypeNotFound Name))}
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Type-improvement constraints}
+
+\vspace{-77\in}
+
+\blau{Too much polymorphism}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ \myprompt \inp{hOccurs (HCons True HNil)}
+ \out{No instance for (HOccurs e (HCons Bool HNil))}
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Use unconditional type cast for type improvement}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance \textbf{TypeCast e' e}
+       \carr HOccurs e (TIP (\textbf{HCons e' HNil}))
+ where    hOccurs (TIP (HCons e' _)) = typeCast e'
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+instance HOccurs e (HCons x (HCons y l))
+      \carr HOccurs e (TIP (\textbf{HCons x (HCons} y l)))
+ where hOccurs (TIP l) = hOccurs l
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Instance-level type improvement works!}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ \myprompt \inp{hOccurs (True .*. emptyTIP)}
+ \out{True}
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Computations on types}
+
+\vspace{-66\in}
+
+\blau{Compute-type level equality}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HBool b \carr TypeEq x y b | x y \farr b
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ data Proxy e; proxy :: Proxy e; proxy = \undefined
+ proxyEq :: TypeEq t t' b \carr Proxy t \farr Proxy t' \farr b
+ proxyEq _ _ = \undefined
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Type-level type-safe cast}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HMaybe m \carr Cast x m y | x y \farr m
+  where cast :: x \farr m y
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Reified type unification}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class TypeCast x y | x \farr y, y \farr x
+  where typeCast :: x \farr y
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Want to see an implementation?}
+
+\vspace{-77\in}
+
+\blau{Here is one.}
+
+\vspace{-77\in}
+
+{\tiny (Requires GHC and a separate compilation trick.)}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+  instance TypeEq x x HTrue
+  instance (HBool b, TypeCast HFalse b) \carr TypeEq x y b
+\end{Verbatim}
+\medskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+  instance Cast x x HJust
+   where cast x = HJust x
+  instance TypeCast HNothing m \carr Cast x y m
+   where cast x = HNothing
+\end{Verbatim}
+\medskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+  instance TypeCast x x
+   where typeCast = id
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Want to see an implementation?}
+
+\vspace{-77\in}
+
+\blau{Here is another one.}
+
+\vspace{-77\in}
+
+{\tiny (Requires GHC and a `two-class' trick.)}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance TypeCast'  () a b \carr TypeCast a b
+    where typeCast x = typeCast' () x
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ class TypeCast'  t a b | t a \farr b, t b \farr a
+  where typeCast'  :: t \farr a \farr b
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ class TypeCast'' t a b | t a \farr b, t b \farr a
+  where typeCast'' :: t \farr a \farr b
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance TypeCast'' t a b \carr TypeCast' t a b
+    where typeCast' = typeCast''
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance TypeCast'' () a a
+    where typeCast'' _ x  = x
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Yet another implementation}
+
+\vspace{-77\in}
+
+{\tiny (Works fine with modest extensions.)}
+
+\vspace{-42\in}
+
+\blau{Refiy \emph{Data.Typeable}}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class TTypeable a b | a \farr b
+ instance TTypeable Bool (HCons HZero HNil)
+ instance TTypeable Int  (HCons (HSucc HZero) HNil)
+ instance (TTypeable a al, TTypeable b bl)
+  \carr TTypeable (a \farr b)
+        (HCons (HSucc (HSucc HZero))
+               (HCons al (HCons bl HNil)))
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Reify type equality}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance ( TTypeable t tt, TTypeable t' tt'
+          , HEq tt tt' b ) \carr TypeEq t t' b
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+
+\header{Conclusion and future work}
+
+\medskip
+
+{\small
+
+\littleskip\begin{itemize}
+
+\item \HList\ is readily useful.
+
+\item Haskell's type system is open.
+
+\item Do we want a marriage of reification, macros, templates?
+
+\item A preprocessor for type-level programming!
+
+\begin{Verbatim}[fontseries=normal,fontsize=\tiny,commandchars=\\\{\}]
+hOccurs :: Typeable a \carr HList \farr a
+hOccurs hl = head many
+ where many = hOccursMany hl
+ \textbf{require} length many == 1
+\end{Verbatim}
+
+\end{itemize}
+
+Thank you for your attention.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The future of Haskell}
+
+\vspace{-77\in}
+
+\blau{Getting rid of overlapping instances}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small,commandchars=\\\{\}]
+ -- A good reason for overlapping?
+ class Show x 
+ instance Show [x]
+ instance Show [Char]
+
+ -- Rather do it like this!
+ instance ( TypeEq x Char bool
+          , ShowList bool x 
+          ) => Show [x]
+
+ class ShowList bool x
+ instance ShowList HTrue Char -- handle String
+ instance ShowList HFalse x   -- normal lists
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+\begin{myslide}
+
+\header{Getting rid of overlapping instances cont'd}
+
+\medskip
+
+\begin{Verbatim}[fontseries=normal,fontsize=\small,commandchars=\\\{\}]
+ -- Another good reason for overlapping?
+ class Foo x
+ instance Foo Int
+ instance Foo Char
+ instance Foo a -- otherwise?
+
+ -- Rather do it like this!
+ instance 
+   ( HType2HNat a (Int :*: Char :*: HNil) nat
+   , Foo' a nat
+   ) => Foo a
+ class Foo' a nat
+ instance Foo' a (HSucc HZero)
+ instance Foo' a (HSucc (HSucc HZero))
+ instance Foo' a HZero -- otherwise?
+\end{Verbatim}
+
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\end{document}

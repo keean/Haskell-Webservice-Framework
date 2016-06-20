@@ -1,0 +1,62 @@
+<HTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide17.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide19.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+hType2HNat Revisited
+
+<!-- END TITLE -->
+
+</H2>
+<P>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+<LI>Earlier we mentioned there were some tradeoffs when implementing hType2HNat.
+</LI>
+<BR />
+<LI>Overlapping instances with fundeps occur when we wish to select an item by
+type:
+<BLOCKQUOTE><CODE>
+instance X (HCons e l) e ...<BR />
+instance X (HCons e' l) e ...<BR />
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>GHC will reject if the 'dependant' types (the RHS of the fundep) do not unify 
+between overlapping instances. Hugs will reject if the types of the instances differ 
+(oly allow specialisation).
+</LI>
+<BR />
+<LI>Our first step is to move all the problems to a sible class by rewriting:
+<BLOCKQUOTE><CODE>
+instance (HTypeEqBool e' e b,Helper b e' l e l') => X (HCons e' l) e l'
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>We avoid overlapping instances in the helper class as HTypeEqBool returns
+a type-level HTrue or HFalse.
+</LI>
+
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+</P>
+</CENTER>
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

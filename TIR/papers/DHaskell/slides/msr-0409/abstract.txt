@@ -1,0 +1,52 @@
+Title:
+
+Type-level computations in Haskell
+
+Speaker:
+
+Ralf Lämmel (Vrije Universiteit and CWI, Amsterdam)
+
+Abstract:
+
+The template mechanism is a remarkable feature of the programming
+language C++. Its utility for several advanced kinds of compile-time
+computations was observed more or less incidentally at a time when the
+C++ language and this mechanism was already in use for several
+years. This was also coined template meta-programming. In the last two
+or three years, Haskell's class mechanism has offered similar
+surprises. By reifying values as data types, and by reifying functions
+as multi-parameter classes, one can perform rich type-level
+computations. In some flavour, this was also coined faked dependently
+typed programming. In this talk, we will review some novel
+applications of type-level computations. In particular, we will
+describe a library for statically typed heterogeneous collections. We
+will also sketch other applications such as a strongly typed database
+API, the functional definition of a faithful object system, and
+strongly typed XML transformations. While our presentation is focused
+at Haskell, we will also comment on the role of type-level
+computations in an improved Haskell language, and in other programming
+languages.
+
+
+This is all joint work with
+Oleg Kiselyov (FNMOC, Monterey, CA, USA) and
+Keean Schupke (Imperial College, London, UK)
+
+
+Related links:
+http://www.cwi.nl/~ralf/HList/
+(Strongly typed heterogeneous collections)
+
+
+About the speaker:
+
+Ralf Lämmel is assistant professor at the Free University of
+Amsterdam, and he is also affiliated with the Dutch Center for
+Mathematics and Computer Science (CWI). His research interests include
+program transformation, programming languages, generic language
+technology, and automated software engineering. As a freelancer and
+consultant, he has designed, implemented, and deployed software
+development tools, migration tools, and application generators for
+business computing. He received his PhD in computer science from the
+University of Rostock, Germany. Contact him at email: ralf@cs.vu.nl;
+www: http://www.cs.vu.nl/~ralf.

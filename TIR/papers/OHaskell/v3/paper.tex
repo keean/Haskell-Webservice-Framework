@@ -1,0 +1,170 @@
+\documentclass[onecolumn,11pt,preprint]{sigplanconf}
+
+% \documentclass{llncs}
+% \documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{times}
+\usepackage{comment}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{graphics}
+\usepackage{boxedminipage}
+\usepackage{code}
+
+\usepackage[bookmarks=false,%
+            colorlinks,linkcolor=black,urlcolor=blue,%
+            pdfauthor={Oleg and Keean and Ralf},%
+            pdftitle={OOHaskell}]{hyperref}
+
+
+\DefineShortVerb{\|}
+%\DefineVerbatimEnvironment{code}{Verbatim}{xleftmargin=\mathindent,commandchars=\\\{\},fontsize=\small}
+% \setlength{\parskip}{0pt}
+%\newlength{\mathindent}
+%\setlength{\mathindent}{1em}
+
+
+% Macros for notes to each other in the text
+\newcommand{\keean}[1]{{\it [Keean says: #1]}}
+\newcommand{\oleg}[1]{{\it [Oleg says: #1]}}
+\newcommand{\ralf}[1]{{\it [Ralf says: #1]}}
+
+\newcommand{\mysize}{\small}
+\newcommand{\myskip}{\smallskip}
+\newcommand{\antiskip}{\vspace{-25\in}}
+\newcommand{\myinput}[1]{The content of this section is not yet released.}
+\newcommand{\HList}{\textsc{HList}}
+\newcommand{\undefined}{\ensuremath{\bot}}
+\newcommand{\Forall}{\ensuremath{\forall}}
+
+\setlength{\parskip}{0pt}
+\setlength{\parsep}{0pt}
+ 
+
+
+\begin{document}
+
+%\conferenceinfo{WXYZ '05}{date, City.} 
+%\copyrightyear{2005} 
+%\copyrightdata{supplied by printer} 
+ 
+\title{Haskell's overlooked object system\\
+{\small ---~DRAFT OF \today~---}\vspace{-77\in}}
+
+\authorinfo{Oleg Kiselyov}{FNMO Center, Monterey, CA}{}
+\authorinfo{Ralf L{\"a}mmel}{Microsoft Corp., Redmond, WA}{}
+\authorinfo{Keean Schupke}{Imperial College, London, UK}{}
+
+
+\maketitle
+
+\begin{abstract}
+
+Haskell provides type-class-based bounded polymorphism as opposed to
+subtype polymorphism of object-oriented languages such as Java and
+OCaml. It is a contentious question whether Haskell (alone or with
+extensions) can support conventional object-oriented programming with
+encapsulation, inheritance, overriding, statically checked subtyping,
+and so on.
+
+\medskip
+
+Recently it has been shown that multi-parameter type classes with
+functional dependencies alone support the record calculus for
+extensible polymorphic records with first-class labels and
+subtyping. This paper builds upon this result and shows that Haskell
+readily supports objects encapsulating methods and mutable fields,
+inheritance, overriding, constructor methods, abstract classes,
+lexically scoped classes, in fact, first-class classes, and others. We
+provide open recursion, and the ability to close it selectively, thus
+giving the programmer full control over sharing or isolation of base
+classes in multiple-inheritance hierarchies. It is especially pleasing
+that the class instantiator is just the (monadic) fix-point
+combinator.
+
+\medskip
+
+We work through a series of working OO examples as they are commonly
+found in OO textbooks and programming language tutorials. In
+particular, we elucidate a translation of OCaml's object syntax to
+Haskell, where we do not perturb the OCaml code: we translate
+expression-by-expression without a need for global parameters. More
+generally, we aim to provide OO idioms in Haskell in an OO
+intuition-preserving way. The resulting combination of OO idioms,
+higher-order functional programming, and type inference is
+comparatively powerful. Hence, `OOHaskell' lends itself as a prime
+environment for typed OO language design.
+
+\end{abstract}
+
+\makeatactive
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\input{intro.tex}
+\input{HList.tex}
+\input{simple.tex}
+\input{self.tex}
+\input{shapes.tex}
+\input{disc.tex}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+{\small 
+
+\subsubsection*{Acknowledgements}
+ 
+We thank Chung-chieh Shan for very helpful discussions. The second
+author presented this work at an earlier stage at the WG2.8 meeting
+(Functional Programming) in November 2004 at West Point. We are
+grateful for feedback at this meeting. We also appreciated feedback from
+Robin Green, Bryn Keller, Chris Rath and several other participants
+in mailing list or email discussions. 
+
+}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{paper}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\renewcommand{\mysize}{\footnotesize}
+
+\input{app.tex}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\end{document}

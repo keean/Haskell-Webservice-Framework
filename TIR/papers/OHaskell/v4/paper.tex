@@ -1,0 +1,171 @@
+\documentclass[nocopyrightspace,preprint]{sigplan-proc}
+
+\setlength{\parskip}{6pt}
+\setlength{\parsep}{3pt}
+
+% \documentclass[onecolumn,11pt,preprint]{sigplanconf}
+% \documentclass{llncs}
+% \documentclass{article}
+
+\usepackage{code}
+%\usepackage{amsmath}
+\usepackage{times}
+\usepackage{comment}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{graphics}
+\usepackage{boxedminipage}
+
+\usepackage[bookmarks=false,%
+            colorlinks,linkcolor=black,urlcolor=blue,%
+            pdfauthor={Oleg and Ralf},%
+            pdftitle={OOHaskell}]{hyperref}
+
+\DefineShortVerb{\|}
+%\DefineVerbatimEnvironment{code}{Verbatim}{xleftmargin=\mathindent,commandchars=\\\{\},fontsize=\small}
+% \setlength{\parskip}{0pt}
+%\newlength{\mathindent}
+%\setlength{\mathindent}{1em}
+
+
+% Macros for notes to each other in the text
+\newcommand{\keean}[1]{{\it [Keean says: #1]}}
+\newcommand{\oleg}[1]{{\it [Oleg says: #1]}}
+\newcommand{\ralf}[1]{{\it [Ralf says: #1]}}
+
+\newcommand{\noskip}{\topsep0pt \parskip0pt \partopsep0pt}
+\newcommand{\w}[1]{\textit{#1}}
+\newcommand{\cmt}[1]{\mbox{\textrm{\emph{#1}}}}
+\newcommand{\mysize}{\small}
+\newcommand{\myskip}{\smallskip}
+\newcommand{\antiskip}{\vspace{-25\in}}
+\newcommand{\myinput}[1]{The content of this section is not yet released.}
+\newcommand{\HList}{\textsc{HList}}
+\newcommand{\undefined}{\ensuremath{\bot}}
+\newcommand{\Forall}{\ensuremath{\forall}}
+ 
+
+\begin{document}
+
+%\conferenceinfo{WXYZ '05}{date, City.} 
+%\copyrightyear{2005} 
+%\copyrightdata{supplied by printer} 
+ 
+\title{Haskell's overlooked object system\\
+{\small ---~DRAFT OF \today~---}\vspace{-77\in}}
+
+\author{Oleg Kiselyov\\FNMOC, Monterey, CA
+%Fleet Numerical Meteorology and Oceanography Center, Monterey, CA
+\and
+Ralf L{\"a}mmel\\Microsoft Corp., Redmond, WA}
+
+
+%\authorinfo{Oleg Kiselyov}{FNMO Center, Monterey, CA}{}
+%\authorinfo{Ralf L{\"a}mmel}{Microsoft Corp., Redmond, WA}{}
+
+
+\maketitle
+
+\begin{abstract}
+
+Haskell provides type-class-based bounded polymorphism as opposed to
+subtype polymorphism of object-oriented languages such as Java and
+OCaml. It is a contentious question whether Haskell (alone or with
+extensions) can fully support conventional object-oriented programming
+with encapsulation, mutable state, inheritance, overriding, statically
+checked subtyping, and so on.
+
+We have constructively shown that Haskell \emph{as it is} supports all
+the conventional OO features plus more advanced ones, including
+first-class lexically scoped classes, implicitly polymorphic classes,
+flexible multiple inheritance, type inference for objects and
+object-operating functions, an ability to put objects of distinct
+types to a homogeneous list, whose type is derived automatically. Many
+of the features we get ``for free'': the type system of Haskell turns
+out to be a great help and a guide rather than a hindrance.
+
+The OO features are introduced in Haskell as the OOHaskell
+\emph{library}, non-trivially based on the \HList\ library of
+extensible polymorphic records with first-class labels and
+subtyping. The library sample code, which is patterned after the
+examples found in OO textbooks and programming language tutorials,
+including OCaml object tutorial, demonstrates that OO code translates
+into OOHaskell in an intuition-preserving way: essentially
+expression-by-expression, without requiring global transformations.
+
+OOHaskell lends itself as a sandbox for typed OO language design.
+
+\end{abstract}
+
+\makeatactive
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\input{intro.tex}
+\input{shapes.tex}
+\input{rationale.tex}
+\input{basics.tex}
+\input{types.tex}
+\input{strengths.tex}
+\input{related.tex}
+\input{concl.tex}
+
+    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+{\small 
+
+\subsubsection*{Acknowledgements}
+ 
+We thank Keean Schupke for his major contributions to HList and
+OOHaskell. We thank Chung-chieh Shan for very helpful discussions.  We
+also gratefully acknowledge feedback from Robin Green, Bryn Keller,
+Chris Rathman and several other participants in mailing list or email
+discussions. The second author presented this work at an earlier stage
+at the WG2.8 meeting (Functional Programming) in November 2004 at West
+Point. We are grateful for feedback received at this meeting.
+
+}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+{\small
+
+\bibliographystyle{abbrv}
+\bibliography{paper}
+
+}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\renewcommand{\mysize}{\footnotesize}
+
+\appendix
+
+\bigskip
+
+{\large Two ``poor mens''' approaches follow.}
+
+\input{app.tex}
+
+\end{document}

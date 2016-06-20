@@ -1,0 +1,8 @@
+OBJS=TTypeable.o TTypeLift.o TPrelude.o Main.o
+INCLUDES=-i.
+
+include ../../config/make.conf
+
+test: TTypeable.o TTypeLift.o TPrelude.o Main.o
+	ghc -o test Main.o TPrelude.o TTypeLift.o TTypeable.o -syslib template-haskell
+

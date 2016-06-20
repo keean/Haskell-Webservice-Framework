@@ -1,0 +1,216 @@
+\documentclass{article}
+
+\usepackage{times}
+\usepackage{code}
+\usepackage{fancyvrb}
+\usepackage{comment}
+\usepackage{boxedminipage}
+
+
+% Macros for notes to each other in the text
+\newcommand{\keean}[1]{{\it [Keean says: #1]}}
+\newcommand{\oleg}[1]{{\it [Oleg says: #1]}}
+\newcommand{\ralf}[1]{{\it [Ralf says: #1]}}
+
+\begin{document}
+ 
+\title{Haskell with dependent types}
+ 
+%\author{}
+
+\date{Draft; \today}
+
+\maketitle
+
+\begin{abstract}
+
+We describe a simple extension of Haskell, DHaskell, to support
+dependently typed programming. DHaskell allows the programmer to avoid
+the tedious coding that results from using Haskell's type-class system
+for faked dependently typed programming. Compared to other dependently
+typed programming languages, DHaskell provides a straigthforward
+integration with normal Haskell programming and type-level
+computations, at the cost of some limitations. We lay out the schemes
+that are used in a preprocessor-based implementation of DHaskell.
+\end{abstract}
+
+% Switch on the 'at' sign
+\makeatactive
+ 
+
+
+\section{Introduction}
+
+
+
+\section{The obligatory \texttt{append} example}
+
+We illustrate dependent typing in DHaskell by means of a trivial
+example that we adopt from Xi's seminal work on DML. We are going to
+reconstruct the following @append@ function:
+
+\begin{code}
+ fun ('a) append xs ys =
+  case xs of [] => ys | x :: xs => x :: append xs ys
+ withtype {m:nat,n:nat} <m> =>
+         'a list(m) -> 'a list(n) -> 'a list(m+n)
+\end{code}
+
+This version of @append@ operates 
+
+We develop this
+example step by step starting from a version that involves type-level
+computations. The example is about the static guarantee that the
+length of an appended list is always the sum of the length of its
+operands.
+
+\medskip
+
+\noindent
+This is the normal @List@ type:
+
+\begin{code}
+ data List a = Nil | Cons a (List a)
+\end{code}
+
+\noindent
+This is the normal @append@ function:
+
+\begin{code}
+ append :: List a -> List a -> List a
+ append Nil x = x
+ append (Cons h t) x = Cons h (append t x)
+\end{code}
+
+\noindent
+Now suppose that we would like to know for sure that:
+\[\begin{array}{l}
+\forall\,\alpha :: *.\ \forall\,l_1, l_2 :: \texttt{List}\ \alpha.\\ 
+\texttt{length}\ (\texttt{append}\ l_1\ l_2) == 
+\texttt{add}\ (\texttt{length}\ l_1)\ (\texttt{length}\ l_2)
+\end{array}\]
+
+\noindent
+(We assume that all involved functions terminate.)
+
+\medskip
+
+\noindent
+It is trivial to prove that the abovementioned property holds. A paper
+proof of the property would be by induction on the list structure for
+@append@'s first operand. Here we assume the following definitions of
+the referenced functions:
+
+\begin{code}
+ -- Naturals
+ data Nat = Zero | Succ Nat
+\end{code}
+
+\begin{code}
+ -- Addition of naturals
+ add :: Nat -> Nat -> Nat
+ add Zero n = n
+ add (Succ n) n' = Succ (add n n')
+\end{code}
+
+\begin{code}
+ -- Length of lists
+ length :: List a -> Nat
+ length Nil = Zero
+ length (Cons h t) = Succ (length t)
+\end{code}
+
+
+\paragraph*{The induction proof}
+
+\noindent
+\begin{itemize}
+%
+\item Base case: $l_1 == \texttt{Nil}$ 
+\[\begin{array}{p{1in}ll}
+& & \texttt{length}\ (\texttt{append}\ \texttt{Nil}\ l_2)\\
+\mbox{(1st eq.\ \texttt{append})}
+& ==
+& \texttt{length}\ l_2
+\\
+\mbox{}\\
+& & \texttt{add}\ (\texttt{length}\ \texttt{Nil})\ (\texttt{length}\ l_2)\\
+\mbox{(1st eq.\ \texttt{length})}
+& ==
+& \texttt{add}\ \texttt{Zero}\ (\texttt{length}\ l_2)
+\\
+\mbox{(1st eq.\ \texttt{add})}
+& ==
+& \texttt{length}\ l_2
+\end{array}\]
+%
+%
+%
+\item Induction step: $l_1$ is of the form $\texttt{Cons}\ a\ b$
+\[\begin{array}{p{1in}ll}
+& & \texttt{length}\ (\texttt{append}\ (\texttt{Cons}\ a\ b)\ l_2)\\
+\mbox{(2nd eq.\ \texttt{append})}
+& ==
+& \texttt{length}\ (\texttt{Cons}\ a\ (\texttt{append}\ b\ l_2))
+\\
+\mbox{(2nd eq.\ \texttt{length})}
+& ==
+& \texttt{Succ}\ (\texttt{length}\ (\texttt{append}\ b\ l_2))
+\\
+\mbox{}\\
+& & \texttt{add}\ (\texttt{length}\ (\texttt{Cons}\ a\ b))\ (\texttt{length}\ l_2)\\
+\mbox{(2nd eq.\ \texttt{length})}
+& ==
+& \texttt{add}\ (\texttt{Succ}\ (\texttt{length}\ b))\ (\texttt{length}\ l_2)
+\\
+\mbox{(2nd eq.\ \texttt{add})}
+& ==
+& \texttt{Succ}\ (\texttt{add}\ (\texttt{length}\ b)\ (\texttt{length}\ l_2))
+\\
+\mbox{(ind.\ hypoth.)}
+& ==
+& \texttt{Succ}\ (\texttt{length}\ (\texttt{append}\ b\ l_2))
+\end{array}\]
+%
+\end{itemize}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{comment}
+\begin{code}
+ data List (n::Nat) a = Nil where n=0
+                      | Cons a (List m a) where n=m+1
+\end{code}
+
+\begin{code}
+ append ::  List a l -> List a m -> List a (l+m)
+ append (Cons x xs) ys = Cons x (append xs ys)
+ append Nil ys = Nil 
+\end{code}
+\end{comment}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Preprocessing semantics}
+
+\section{Examples}
+
+\section{Related work}
+
+\section{Concluding remarks}
+
+
+%\bibliographystyle{abbrv}
+%\bibliography{paper}
+ 
+\end{document}

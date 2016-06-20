@@ -1,0 +1,57 @@
+<HTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide11.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide13.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+Type Indexed Products
+
+<!-- END TITLE -->
+
+</H2>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+<LI>We can take type driven operation further if we introduce a constraint, such
+that each type can only occur once in an HList. This is effectively a type-indexed-product.
+</LI>
+<BR />
+<LI>We can use a type class to create the constraint:
+<BLOCKQUOTE><CODE>HFreeType e l<BR />
+instance HFreeType e HNil<BR />
+instance (TypeNotEq e e',HFreeType e l)<BR />
+&nbsp;&nbsp;&nbsp;=> HFreeType e (HCons e' l)</CODE></BLOCKQUOTE>
+</LI>
+<LI>To allow operations on TIPs to be overloaded on existing operators, we
+create the new type:&nbsp;&nbsp;&nbsp;
+<CODE>newtype TIP l = TIP l { unTIP :: l }</CODE>
+</LI>
+<BR />
+<LI>We can then lift HCons to TIPs applying the type uniqueness constraint.
+</LI>
+<BR />
+<LI>We can also define type-indexed-coproducts, see paper.</LI>
+
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+</CENTER>
+<BR />
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

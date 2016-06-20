@@ -1,0 +1,110 @@
+<HTML>
+<HEAD>
+<TITLE>Haskell's overlooked object system</TITLE>
+</HEAD>
+
+<BODY bgcolor="#99CCFF">
+
+<H3>Haskell's overlooked object system</H3>
+
+<DL>
+<DT>Authors
+<DD>Oleg Kiselyov and Ralf L&auml;mmel
+<P>
+<DT>Abstract
+<DD>
+Haskell provides type-class-based bounded polymorphism as opposed to
+subtype polymorphism of object-oriented languages such as Java and
+OCaml. It is a contentious question whether Haskell (alone or with
+extensions) can fully support conventional object-oriented programming
+with encapsulation, mutable state, inheritance, overriding, statically
+checked subtyping, and so on.
+<P>
+
+We have constructively shown that Haskell \emph{as it is} supports all
+the conventional OO features plus more advanced ones, including
+first-class lexically scoped classes, implicitly polymorphic classes,
+flexible multiple inheritance, type inference for objects and
+object-operating functions, an ability to put objects of distinct
+types to a homogeneous list, whose type is derived automatically. Many
+of the features we get ``for free'': the type system of Haskell turns
+out to be a great help and a guide rather than a hindrance.
+<P>
+
+The OO features are introduced in Haskell as the OOHaskell
+\emph{library}, non-trivially based on the \HList\ library of
+extensible polymorphic records with first-class labels and
+subtyping. The library sample code, which is patterned after the
+examples found in OO textbooks and programming language tutorials,
+including OCaml object tutorial, demonstrates that OO code translates
+into OOHaskell in an intuition-preserving way: essentially
+expression-by-expression, without requiring global transformations.
+<P>
+
+OOHaskell lends itself as a sandbox for typed OO language design.
+
+</UL>
+<P>
+<DT>Bibtex entries
+<DD>
+<PRE>
+@unpublished{OOHaskell,
+ author = "Oleg Kiselyov and Ralf L{\"a}mmel",
+ title = "{Haskell's overlooked object system}",
+ year = 2005,
+ notes = "Draft; Online since 30 Sep.\ 2004; Updated 13 June 2005"
+}
+</PRE>
+
+<P>
+
+<DT>View draft paper
+<UL> 
+<LI><A HREF=paper.ps>[.ps]</A>
+<LI><A HREF=paper.pdf>[.pdf]</A>
+<LI>See also the <A HREF=../HList>HList</A> paper!
+</UL>
+<P>
+<DT>Download OOHaskell
+<UL>
+<LI><A HREF=code.html>[.html]</A> (OOHaskell sample code)
+<LI><A HREF=../HList/code.html>[.html]</A> (The underlying HLlist lib)
+</UL>
+<P>
+<DT>Browse slides
+<UL>
+<LI> Slides: <A HREF=slides.ps>[.ps]</A>; <A HREF=slides.pdf>[.pdf]</A> (IFIP WG 2.8 meeting, 2004)
+</UL>
+</DL>
+
+<HR>
+ 
+<SMALL>
+Website maintained by Ralf L&auml;mmel
+(Email: <A HREF=mailto:ralf@cwi.nl>ralf@cwi.nl</A>)
+</SMALL>
+ 
+<P>
+
+<!-- End Nedstat Basic code -->
+<!-- Begin Nedstat Basic code -->
+<!-- Title: OOHaskell -->
+<!-- URL: http://www.cwi.nl/~ralf/OOHaskell -->
+<script language="JavaScript" type="text/javascript" src="http://m1.nedstatbasic.net/basic.js">
+</script>
+<script language="JavaScript" type="text/javascript" >
+<!--
+  nedstatbasic("ADDKTwchFg/QkzX08ywz1O0CUfjA", 0);
+// -->
+</script>
+<noscript>
+<a target="_blank" href="http://www.nedstatbasic.net/stats?ADDKTwchFg/QkzX08ywz1O0CUfjA"><img
+src="http://m1.nedstatbasic.net/n?id=ADDKTwchFg/QkzX08ywz1O0CUfjA"
+border="0" width="18" height="18"
+alt="Nedstat Basic - Free web site statistics
+Personal homepage website counter"></a><br>
+<a target="_blank" href="http://www.nedstatbasic.net/">Free counter</a>
+</noscript>
+<!-- End Nedstat Basic code -->
+
+</BODY>

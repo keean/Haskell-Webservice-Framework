@@ -1,0 +1,1635 @@
+\documentclass{slides}
+
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{graphics}
+\usepackage[usenames]{pstcol}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{ifthen}
+\usepackage{comment}
+\usepackage{boxedminipage}
+
+\begin{comment}
+\newenvironment{myslide}{\begin{slide}\color{Blue}\begin{boxedminipage}{1.1\hsize}\begin{boxedminipage}{1\hsize}\color{Black}
+\vspace{-170\in}
+}{%
+\smallskip
+\end{boxedminipage}
+\end{boxedminipage}
+\end{slide}}
+\end{comment}
+\begin{comment}
+\newenvironment{myslide}{\begin{slide}
+}{%
+\end{slide}}
+\end{comment}
+\newenvironment{myslide}{\begin{slide}\color{White}\begin{boxedminipage}{1.1\hsize}\color{Black}
+\vspace{-170\in}
+}{%
+\smallskip
+\end{boxedminipage}
+\end{slide}}
+\newcommand{\almostnoskip}{\topsep1pt \parskip1pt \partopsep1pt}
+\newcommand{\negskip}{\vspace{-50\in}}
+\newcommand{\noskip}{\topsep1pt \parskip1pt \partopsep1pt}
+\newcommand{\littleskip}{\topsep8pt \parskip8pt \partopsep8pt}
+\newcommand{\header}[1]{{\large \color{Red} #1}}
+\newcommand{\bang}[1]{{\color{Blue} \mytextbf{#1}}}
+\newcommand{\inp}[1]{{\color{Brown} \mytextbf{#1}}}
+\newcommand{\out}[1]{{\color{Black} \mytextbf{#1}}}
+\newcommand{\blau}[1]{{\vspace{-50\in}\normalsize \color{Blue} #1}}
+\newcommand{\cod}{c}
+\newcommand{\myforall}{\ensuremath{\forall}}
+\newcommand{\HList}{\textsc{HList}}
+\newcommand{\undefined}{\ensuremath{\bot}}
+\newcommand{\farr}{\ensuremath{\to}}
+\newcommand{\larr}{\ensuremath{\leftarrow}}
+\newcommand{\carr}{\ensuremath{\Rightarrow}}
+\renewcommand{\qquad}{\hspace{40\in}}
+\newcommand{\flc}{$\=$}
+\newcommand{\lc}{$\>$}
+\newcommand{\alphaq}{\alpha'}
+\newcommand{\sforall}{\overline{\forall}}
+\newcommand{\strafunski}{\textit{\textsf{Strafunski}}}
+\newcommand{\drift}{\emph{DrIFT}}
+\newlength{\basewidth}
+\newlength{\topwidth}
+\newcommand{\superimpose}[2]{%
+  \settowidth{\basewidth}{#1}%
+  \settowidth{\topwidth}{#2}%
+  \ifthenelse{\lengthtest{\basewidth > \topwidth}}%
+    {\makebox[0pt][l]{#1}\makebox[\basewidth]{#2}}%
+    {\makebox[0pt][l]{#2}\makebox[\topwidth]{#1}}%
+}
+\newcommand{\myprompt}{ghci\ensuremath{>}}
+\newcommand{\mybar}{\ensuremath{|}}
+\newcommand{\mylbrace}{\ensuremath{\{}}
+\newcommand{\myrbrace}{\ensuremath{\}}}
+\newcommand{\mytextbf}[1]{\texttt{\textbf{#1}}}
+
+\begin{document}
+
+\pagestyle{empty}
+
+
+
+\begin{comment}
+\begin{slide}
+ 
+Press PgDn to start.
+ 
+\end{slide}
+\end{comment}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+
+\begin{center}
+\header{{\itshape\textbf{Haskell's overlooked object system}}}
+\end{center}
+
+\bigskip
+
+{\small
+
+\blau{
+
+Oleg Kiselyov, FNMO Center, Monterey, CA\\
+Ralf L{\"a}mmel, VUA \& CWI, Amsterdam\\
+Keean Schupke, Imperial College, London
+
+}
+
+
+\bigskip
+
+Subtitles:
+
+{\noskip\begin{itemize}
+\item Type-level programming.
+\item Programmable type systems in Haskell.
+\item Mutable Haskell objects for C++ programmers.
+\item The Haskell implementation of the OCaml tutorial.
+\item No headache today: functional (immutable) objects omitted.
+\end{itemize}}
+
+\medskip
+
+$^*$\ We acknowledge input from Chung-chieh Shan.
+
+}
+
+\medskip
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell meets OCaml}
+
+{\tiny
+
+OCaml (first tutorial example from Sec 3.1 Classes and objects)
+
+\begin{verbatim}
+class point =
+    object
+      val mutable x = 0
+      method get_x = x
+      method move d = x <- x + d
+    end;;
+\end{verbatim}
+
+OOHaskell (uses IORefs and HList's extensible records)
+
+\begin{verbatim}
+point =
+  do
+    x <- newIORef 0
+    returnIO
+      $  mutableX .=. x
+     .*. getX     .=. readIORef x
+     .*. moveD    .=. (\d -> modifyIORef x ((+) d))
+     .*. emptyRecord
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell uses HList labels}
+
+{\small
+
+There are four models, e.g.:
+
+\begin{verbatim}
+data MutableX; mutableX = proxy::Proxy MutableX
+data GetX;     getX     = proxy::Proxy GetX
+data MoveD;    moveD    = proxy::Proxy MoveD
+...
+\end{verbatim}
+
+Proxies are defined as follows:
+
+\begin{verbatim}
+data Proxy e
+instance Show (Proxy e) where show _ = "Proxy"
+
+proxy :: Proxy e
+proxy =  undefined
+
+toProxy :: e -> Proxy e
+toProxy _ = undefined
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell meets OCaml (cont'd)}
+
+{\tiny
+
+OCaml
+
+\begin{verbatim}
+#let p = new point;;
+val p : point = <obj>
+#p#get_x;;
+- : int = 0
+#p#move 3;;
+- : unit = ()
+#p#get_x;;
+- : int = 3
+\end{verbatim}
+
+OOHaskell
+
+\begin{verbatim}
+myFirstOOP = do  p <- point
+                 p # getX >>= print
+                 p # moveD $ 3
+                 p # getX >>= print
+ghci> myFirstOOP
+0
+3
+\end{verbatim}
+
+}
+
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{What would be a powerful object system?}
+
+\medskip
+
+{\small
+
+\noskip\begin{itemize}
+\item Encapsulation
+\item Inheritance and overriding
+\item Statically typed subtyping
+\item Interface polymorphism
+\item Private methods
+\item Multiple inheritance, diamond inheritance
+\item Local objects and classes
+\item Constructor expressions
+\end{itemize}
+}
+
+\medskip
+
+OOHaskell provides these\\
+without any ad-hoc extensions,\\
+without type system extensions.
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Selfish OCaml and OOHaskell}
+
+{\tiny
+
+OCaml
+
+\begin{verbatim}
+class printable_point x_init =
+   object (s)
+     val mutable x = x_init
+     method get_x  = x
+     method move d = x <- x + d
+     method print  = print_int s#get_x
+   end;;
+\end{verbatim}
+
+OOHaskell
+
+\begin{verbatim}
+class_printable_point x_init self
+  = do
+      x <- newIORef x_init
+      returnIO
+        $  mutableX .=. x
+       .*. getX     .=. readIORef x
+       .*. moveD    .=. (\d -> modifyIORef x ((+) d))
+       .*. ooprint  .=. ((self # getX ) >>= print)
+       .*. emptyRecord
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{The `shapes' OO benchmark}
+
+\bigskip
+
+\url{http://www.angelfire.com/tx4/cus/shapes/}
+
+\bigskip
+
+Involves inheritance, polymorphism, up-cast, ...
+
+\bigskip
+
+{\small
+
+Output behaviour
+
+\begin{verbatim}
+Drawing a Rectangle at:(10,20), width 5, height 6
+Drawing a Rectangle at:(110,120), width 5, height 6
+Drawing a Circle at:(15,25), radius 8
+Drawing a Circle at:(115,125), radius 8
+Drawing a Rectangle at:(0,0), width 30, height 15
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++}
+
+(Contributed by Jim Weirich)
+
+Shape Class (Shape.h)
+
+{\tiny
+
+\begin{verbatim}
+class Shape {
+
+public:
+   Shape(int newx, int newy);
+   int getX();
+   int getY();
+   void setX(int newx);
+   void setY(int newy);
+   void moveTo(int newx, int newy);
+   void rMoveTo(int deltax, int deltay);
+   virtual void draw();
+
+private:
+   int x;
+   int y;
+};
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++ (cont'd)}
+
+Shape Implementation (Shape.cpp)
+
+{\tiny
+
+\begin{verbatim}
+// constructor
+Shape::Shape(int newx, int newy) {
+   moveTo(newx, newy);
+}
+
+// accessors for x & y
+int Shape::getX() { return x; }
+int Shape::getY() { return y; }
+void Shape::setX(int newx) { x = newx; }
+void Shape::setY(int newy) { y = newy; }
+
+// move the shape position
+void Shape::moveTo(int newx, int newy) {
+   setX(newx);
+   setY(newy);
+}
+void Shape::rMoveTo(int deltax, int deltay) {
+   moveTo(getX() + deltax, getY() + deltay);
+}
+
+// abstract draw method
+void Shape::draw() {
+}
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++ (cont'd)}
+
+Rectangle Class (Rectangle.h)
+
+{\tiny
+
+\begin{verbatim}
+class Rectangle: public Shape {
+
+public:
+  Rectangle(int newx, int newy, int newwidth, int newheight);
+  int getWidth();
+  int getHeight();
+  void setWidth(int newwidth);
+  void setHeight(int newheight);
+  void draw();
+
+private:
+  int width;
+  int height;
+};
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++ (cont'd)}
+
+Rectangle Implementation (Rectangle.cpp)
+
+{\tiny
+
+\begin{verbatim}
+// constructor
+Rectangle::Rectangle(int newx, int newy, int newwidth
+                    , int newheight): Shape(newx, newy) {
+   setWidth(newwidth);
+   setHeight(newheight);
+}
+
+// accessors for width and height
+int Rectangle::getWidth() { return width; }
+int Rectangle::getHeight() { return height; }
+void Rectangle::setWidth(int newwidth)
+  { width = newwidth; }
+void Rectangle::setHeight(int newheight)
+  { height = newheight; }
+
+// draw the rectangle
+void Rectangle::draw() {
+   cout << "Drawing a Rectangle at:("
+        << getX() << "," << getY()
+        << "), width " << getWidth()
+        << ", height " << getHeight() << endl;
+}
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++ (cont'd)}
+
+Circle Interface (Circle.h)
+
+{\tiny
+
+\begin{verbatim}
+class Circle: public Shape {
+
+public:
+   Circle(int newx, int newy, int newradius);
+   int getRadius();
+   void setRadius(int newradius);
+   void draw();
+
+private:
+   int radius;
+};
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++ (cont'd)}
+
+Circle Implementation (Circle.cpp)
+
+{\tiny
+
+\begin{verbatim}
+// constructor
+Circle::Circle(int newx, int newy
+              , int newradius): Shape(newx, newy) {
+   setRadius(newradius);
+}
+
+// accessors for the radius
+int Circle::getRadius() { return radius; }
+void Circle::setRadius(int newradius) { radius = newradius; }
+
+// draw the circle
+void Circle::draw() {
+  cout << "Drawing a Circle at:("
+       << getX() << "," << getY()
+       << "), radius " << getRadius() << endl;
+}
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++ (cont'd)}
+
+Try shapes module (Polymorph.cpp)
+
+{\tiny
+
+\begin{verbatim}
+int main(void) {
+   // set up array to the shapes
+   Shape *scribble[2];
+   scribble[0] = new Rectangle(10, 20, 5, 6);
+   scribble[1] = new Circle(15, 25, 8);
+
+   // iterate through the array
+   // and handle shapes polymorphically
+   for (int i = 0; i < 2; i++) {
+      scribble[i]->draw();
+      scribble[i]->rMoveTo(100, 100);
+      scribble[i]->draw();
+   }
+
+   // call a rectangle specific function
+   Rectangle *arec = new Rectangle(0, 0, 15, 15);
+   arec->setWidth(30);
+   arec->draw();
+}
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Reference implementation in C++ (cont'd)}
+
+Output
+
+{\tiny
+
+\begin{verbatim}
+Drawing a Rectangle at:(10,20), width 5, height 6
+Drawing a Rectangle at:(110,120), width 5, height 6
+Drawing a Circle at:(15,25), radius 8
+Drawing a Circle at:(115,125), radius 8
+Drawing a Rectangle at:(0,0), width 30, height 15
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Haskell does not (yet) meet C++}
+
+(contributed by Chris Rathman)
+
+The Shape class
+
+{\tiny
+
+\begin{verbatim}
+-- declare method interfaces for the shape superclass
+class Shape a where
+   getX :: a -> Int
+   getY :: a -> Int
+   setX :: a -> Int -> a
+   setY :: a -> Int -> a
+   moveTo :: a -> Int -> Int -> a
+   rMoveTo :: a -> Int -> Int -> a
+   draw :: a -> IO()
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Haskell does not (yet) meet C++ (cont'd)}
+
+Manual polymorphism
+
+{\tiny
+
+\begin{verbatim}
+-- declare the constructor for the existential type
+data ExistentialShape =
+   forall a. Shape a => MakeExistentialShape a
+
+-- map the methods for the existential type
+instance Shape ExistentialShape where
+  getX (MakeExistentialShape a) = getX a
+  getY (MakeExistentialShape a) = getY a
+  setX (MakeExistentialShape a) newx
+    = MakeExistentialShape(setX a newx)
+  setY (MakeExistentialShape a) newy
+    = MakeExistentialShape(setY a newy)
+  moveTo (MakeExistentialShape a) newx newy
+    = MakeExistentialShape(moveTo a newx newy)
+  rMoveTo (MakeExistentialShape a) deltax deltay
+    = MakeExistentialShape(rMoveTo a deltax deltay)
+  draw (MakeExistentialShape a) = draw a
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Haskell does not (yet) meet C++ (cont'd)}
+
+The class of rectangles; and data.
+
+{\tiny
+
+\begin{verbatim}
+-- declare method interfaces for rectangle subclass
+class Shape a => Rectangle a where
+   getWidth :: a -> Int
+   getHeight :: a -> Int
+   setWidth :: a -> Int -> a
+   setHeight :: a -> Int -> a
+
+-- declare the constructor for rectangle class
+data RectangleInstance
+  = MakeRectangle {x, y, width, height :: Int}
+   deriving(Eq, Show)
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Haskell does not (yet) meet C++ (cont'd)}
+
+One instance for rectangles
+
+{\tiny
+
+\begin{verbatim}
+-- define the methods for shape superclass
+instance Shape RectangleInstance where
+   getX = x
+   getY = y
+   setX a newx = a {x = newx}
+   setY a newy = a {y = newy}
+   moveTo a newx newy = a {x = newx, y = newy}
+   rMoveTo a deltax deltay
+     = a {x = ((getX a) + deltax), y = ((getY a) + deltay)}
+   draw a = ... -- too long
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Haskell does not (yet) meet C++ (cont'd)}
+
+Another instance for rectangles
+
+{\tiny
+
+\begin{verbatim}
+-- define the methods for rectangle subclass
+instance Rectangle RectangleInstance where
+   getWidth = width
+   getHeight = height
+   setWidth a newwidth = a {width = newwidth}
+   setHeight a newheight = a {height = newheight}
+\end{verbatim}
+
+}
+
+Likewise for circles.
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Haskell does not (yet) meet C++ (cont'd)}
+
+Try shapes
+
+{\tiny
+
+\begin{verbatim}
+main =
+   do -- handle the shapes polymorphically
+      drawloop scribble
+      -- handle rectangle specific instance
+      draw (setWidth arectangle 30)
+   where
+      -- create some shape instances (using ex. wrapper)
+      scribble = [
+         MakeExistentialShape (MakeRectangle 10 20 5 6),
+         MakeExistentialShape (MakeCircle 15 25 8)]
+      -- create a rectangle instance
+      arectangle = (MakeRectangle 0 0 15 15)
+
+-- iterate through the list of shapes and draw
+drawloop [] = return True
+drawloop (x:xs) =
+   do draw x
+      draw (rMoveTo x 100 100)
+      drawloop xs
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell meets C++}
+
+The class for shapes
+
+{\tiny
+
+\begin{verbatim}
+class_shape x_init y_init self
+  = do x <- newIORef x_init
+       y <- newIORef y_init
+       returnIO $
+            getX     .=. readIORef x
+        .*. getY     .=. readIORef y
+        .*. setX     .=. (\newx -> writeIORef x newx)
+        .*. setY     .=. (\newy -> writeIORef y newy)
+        .*. moveTo   .=. (\newx newy -> do
+                                         (self # setX) newx
+                                         (self # setY) newy 
+                         )
+        .*. rMoveTo  .=. (\deltax deltay ->
+               do x <- self # getX
+                  y <- self # getY
+                  (self # moveTo) (x + deltax) (y + deltay) )
+        .*. emptyRecord
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell meets C++ (cont'd)}
+
+The interface for all shapes
+
+{\tiny
+
+\begin{verbatim}
+type ShapeInterface a
+ = Record (  (Proxy GetX    , IO a)
+         :*: (Proxy GetY    , IO a)
+         :*: (Proxy SetX    , a -> IO ())
+         :*: (Proxy SetY    , a -> IO ())
+         :*: (Proxy MoveTo  , a -> a -> IO ())
+         :*: (Proxy RMoveTo , a -> a -> IO ())
+         :*: (Proxy Draw    , IO ())
+         :*: HNil )
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell meets C++ (cont'd)}
+
+The class for rectangles
+
+{\tiny
+
+\begin{verbatim}
+class_rectangle x y width height self
+  = do
+      super <- class_shape x y self
+      w <- newIORef width
+      h <- newIORef height
+      returnIO $
+           getWidth  .=. readIORef w
+       .*. getHeight .=. readIORef h
+       .*. setWidth  .=. (\neww -> writeIORef w neww)
+       .*. setHeight .=. (\newh -> writeIORef h newh)
+       .*. draw      .=. 
+           do
+              putStr  "Drawing a Rectangle at:(" <<
+                      self # getX << ls "," << self # getY <<
+                      ls "), width " << self # getWidth <<
+                      ls ", height " << self # getHeight <<
+                      ls "\n"
+       .*. super
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell meets C++ (cont'd)}
+
+The class for circles
+
+{\tiny
+
+\begin{verbatim}
+class_circle x y radius self
+  = do
+      super <- class_shape x y self
+      r <- newIORef radius
+      returnIO $
+           getRadius  .=. readIORef r
+       .*. setRadius  .=. (\newr -> writeIORef r newr)
+       .*. draw       .=. 
+           do
+              putStr  "Drawing a Circle at:(" <<
+                      self # getX << ls "," << self # getY <<
+                      ls "), radius " << self # getRadius <<
+                      ls "\n"
+       .*. super
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell meets C++ (cont'd)}
+
+Try shapes
+
+{\tiny
+
+\begin{verbatim}
+main = do
+       -- set up array to the shapes.
+       s1 <- mfix (class_rectangle 10 20 5 6)
+       s2 <- mfix (class_circle 15 25 8)
+       let scribble :: [ShapeInterface Int]
+           scribble = [upCast s1, upCast s2]
+       
+       -- iterate through the array
+       -- and handle shapes polymorphically
+       mapM_ ( \shape -> do shape # draw
+                            (shape # rMoveTo) 100 100
+                            shape # draw ) scribble
+
+       -- call a rectangle specific function
+       arec <- mfix (class_rectangle 0 10 15 15)
+       arec # setWidth $ 30
+       arec # draw
+\end{verbatim}
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{OOHaskell internals}
+
+\bigskip
+
+\littleskip\begin{itemize}
+\item Representation of records
+\item Heterogeneous lists
+\item Uniqueness of labels
+\item Computations on types
+\end{itemize}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{One model of extensible records}
+
+\vspace{-77\in}
+
+\blau{Records as maps from labels to values}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\normalsize,commandchars=\\\{\}]
+ newtype Record r = Record r
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\normalsize,commandchars=\\\{\}]
+ mkRecord :: (HZip ls vs r, HLabelSet ls)
+          \carr r \farr Record r
+ mkRecord = Record
+\end{Verbatim}
+
+\bigskip
+
+Labels and values are heterogeneous lists.\\
+Records are (constrained) heterogeneous lists of pairs.
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+\bigskip
+
+\blau{Lists as nested, binary, right-associative products}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ data  HNil      = HNil
+ data  HCons e l = HCons e l
+ type  e :*: l   = HCons e l
+       e .*. l   = HCons e l
+ class HList
+ instance HList HNil
+ instance HList l \carr HList (HCons e l)
+\end{Verbatim}
+
+\medskip
+
+The HList library defines list-processing functions HList.\\
+(... and on TIPs, TICs, etc.)
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+\bigskip
+
+\blau{Zipping on HLists}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\!\?]
+ class HZip x y l | x y \farr l, l \farr x y
+  where hZip :: x \farr y \farr l
+        hUnzip :: l \farr (x,y)
+
+ instance HZip HNil HNil HNil
+  where hZip HNil HNil = HNil
+        hUnzip HNil = (HNil,HNil)
+
+ instance HZip tx ty l
+       \carr HZip (HCons hx tx) (HCons hy ty)
+                  (HCons (hx,hy) l)
+  where
+   hZip (HCons hx tx) (HCons hy ty)
+      = HCons (hx,hy) (hZip tx ty)
+   hUnzip (HCons (hx,hy) l)
+        = (HCons hx tx, HCons hy ty)
+    where (tx,ty) = hUnzip l
+\end{Verbatim}
+
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+\bigskip
+
+\blau{No label occurs twice}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HLabelSet ls
+ instance HLabelSet HNil
+ instance (HMember x ls HFalse, HLabelSet ls)
+       \carr  HLabelSet (HCons x ls)
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Type-level membership test}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HBool b \carr HMember e l b | e l -> b
+ instance HMember e HNil HFalse
+ instance ( HEq e e' b
+          , HMember e l b', HOr b b' b'' )
+       \carr HMember e (HCons e' l) b''
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Type-level equality}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HBool b \carr HEq x y b | x y \farr b
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Equality on labels boils down to type equality}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance TypeEq x y b
+          \carr HEq (Proxy x) (Proxy y) b
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Building extensible records}
+
+\vspace{-77\in}
+
+\blau{The empty record}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+emptyRecord = mkRecord $ hZip HNil HNil
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{An overloaded consing operation}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ (.*.) :: HExtend e l l' \carr e \farr l \farr l'
+ (.*.) =  hExtend
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance ( HZip ls vs r,     HZip ls' vs' r'
+          , HExtend l ls ls', HExtend v vs vs'
+          , HLabelSet ls'
+          ) \carr HExtend (l,v) (Record r) (Record r')
+  where
+   hExtend (l,v) (Record r) = mkRecord r'
+    where
+     (ls,vs) = hUnzip r
+     ls'     = hExtend l ls
+     vs'     = hExtend v vs
+     r'      = hZip ls' vs'
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Access operations for extensible records}
+
+\vspace{-77\in}
+
+\blau{Deletion}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ (Record r) .-. l = Record r'
+   where
+    (ls,vs) = hUnzip r
+    n       = hFind l ls -- uses HEq on labels
+    ls'     = hDeleteAtHNat n ls
+    vs'     = hDeleteAtHNat n vs
+    r'      = hZip ls' vs'
+\end{Verbatim}
+
+\bigskip
+
+Likewise for other record operations.
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Up-cast for records}
+
+\vspace{-77\in}
+
+\blau{Casting a record up to a supertype}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+class UpCast a b where
+    upCast :: Record a \farr Record b
+
+instance UpCast a HNil where
+    upCast _ = emptyRecord
+
+instance ( UpCast r r'
+         , HExtract r l v
+         )
+           \carr UpCast r (HCons (l,v) r')
+  where
+    upCast (Record r) = Record (HCons (l,v) r')
+      where
+        (Record r')    = upCast (Record r)
+        ((l,v)::(l,v)) = hExtract r
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+\bigskip
+
+\blau{Component extraction from a record}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+class  HExtract r l v
+ where hExtract :: r \farr (l,v)
+
+instance ( TypeEq l l1 b
+         , HExtractBool b (HCons (l1,v1) r) l v
+         ) \carr HExtract (HCons (l1,v1) r) l v
+  where
+    hExtract = hExtractBool (undefined::b)
+
+class HBool b \carr HExtractBool b r l v
+  where hExtractBool :: b \farr r \farr (l,v)
+
+instance TypeCast v1 v
+      \carr HExtractBool HTrue (HCons (l,v1) r) l v
+  where
+    hExtractBool _ (HCons (l,v) _) = (l,typeCast v)
+
+instance HExtract r l v
+      \carr HExtractBool HFalse (HCons (l1,v1) r) l v
+  where
+    hExtractBool _ (HCons _ r) = hExtract r
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Computations on types}
+
+\vspace{-77\in}
+
+\blau{Compute-type level equality}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HBool b \carr TypeEq x y b | x y \farr b
+\end{Verbatim}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ data Proxy e; proxy :: Proxy e; proxy = \undefined
+ proxyEq :: TypeEq t t' b \carr Proxy t \farr Proxy t' \farr b
+ proxyEq _ _ = \undefined
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Type-level type-safe cast}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class HMaybe m \carr Cast x m y | x y \farr m
+  where cast :: x \farr m y
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Reified type unification}
+
+\smallskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class TypeCast x y | x \farr y, y \farr x
+  where typeCast :: x \farr y
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Want to see an implementation?}
+
+\vspace{-77\in}
+
+\blau{Here is one.}
+
+\vspace{-77\in}
+
+{\tiny (Requires GHC and a separate compilation trick.)}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+  instance TypeEq x x HTrue
+  instance (HBool b, TypeCast HFalse b) \carr TypeEq x y b
+\end{Verbatim}
+\medskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+  instance Cast x x HJust
+   where cast x = HJust x
+  instance TypeCast HNothing m \carr Cast x y m
+   where cast x = HNothing
+\end{Verbatim}
+\medskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+  instance TypeCast x x
+   where typeCast = id
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Want to see an implementation?}
+
+\vspace{-77\in}
+
+\blau{Here is another one.}
+
+\vspace{-77\in}
+
+{\tiny (Requires GHC and a `two-class' trick.)}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance TypeCast'  () a b \carr TypeCast a b
+    where typeCast x = typeCast' () x
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ class TypeCast'  t a b | t a \farr b, t b \farr a
+  where typeCast'  :: t \farr a \farr b
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ class TypeCast'' t a b | t a \farr b, t b \farr a
+  where typeCast'' :: t \farr a \farr b
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance TypeCast'' t a b \carr TypeCast' t a b
+    where typeCast' = typeCast''
+\end{Verbatim}
+\smallskip
+\begin{Verbatim}[fontfamily=courier,fontsize=\tiny,commandchars=\\\{\}]
+ instance TypeCast'' () a a
+    where typeCast'' _ x  = x
+\end{Verbatim}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Yet another implementation}
+
+\vspace{-77\in}
+
+{\tiny (Works fine with modest extensions.)}
+
+\vspace{-42\in}
+
+\blau{Refiy \emph{Data.Typeable}}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ class TTypeable a b | a \farr b
+ instance TTypeable Bool (HCons HZero HNil)
+ instance TTypeable Int  (HCons (HSucc HZero) HNil)
+ instance (TTypeable a al, TTypeable b bl)
+  \carr TTypeable (a \farr b)
+        (HCons (HSucc (HSucc HZero))
+               (HCons al (HCons bl HNil)))
+\end{Verbatim}
+
+\vspace{-77\in}
+
+\blau{Reify type equality}
+
+\medskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance ( TTypeable t tt, TTypeable t' tt'
+          , HEq tt tt' b ) \carr TypeEq t t' b
+\end{Verbatim}
+
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\header{Subtyping for records via projection}
+
+\bigskip
+
+\begin{Verbatim}[fontfamily=courier,fontsize=\small,commandchars=\\\{\}]
+ instance
+   ( HZip ls vs r'
+   , HProjectByLabels ls (Record r) (Record r')
+   )
+     \carr SubType (Record r) (Record r')
+\end{Verbatim}
+
+{\small
+
+Guess what the definition of type equality is.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{myslide}
+
+\bigskip
+\bigskip
+\bigskip
+
+\header{Last slide}
+
+{\small
+
+The rest is engineering:
+
+\begin{itemize}
+\item A few more type-level operations on objects.
+\item Syntactic sugar (if required) -- local translation is sufficient.
+\item Better error messages -- needed for any type-level programming.
+\end{itemize}
+
+Please check: \url{http://www.cwi.nl/~ralf/OOHaskell/}
+
+Thank you for your attention.
+
+}
+
+\end{myslide}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\end{document}

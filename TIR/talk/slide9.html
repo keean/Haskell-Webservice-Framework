@@ -1,0 +1,58 @@
+<hTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide8.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide10.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+Heterogeneous Arrays
+
+<!-- END TITLE -->
+
+</H2>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+<LI>Using natural numbers at the type level (Peano numbers) we can do indexed access
+on an HList:
+<BLOCKQUOTE><CODE>
+data HZero = HZero<BR />
+data HSucc n = HSucc n<BR /><BR />
+class HLookup l i e | l i -> e where<BR />
+&nbsp;&nbsp;&nbsp;hLookup :: l -> i -> e<BR />
+instance HLookup (HCons e l) HZero e where<BR />
+&nbsp;&nbsp;&nbsp;hLookup (HCons e _) _ = e<BR />
+instance HLookup l i e => HLookup (HCons e' l) (HSucc i) e where<BR />
+&nbsp;&nbsp;&nbsp;hLookup (HCons _ l) (HSucc i) = hLookup l i<BR />
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>We can define various index based functions:
+<BLOCKQUOTE><CODE>
+hLookup, hDelete, hUpdateTP, hUpdateTC, hProject, hSplit, hSize
+</CODE></BLOCKQUOTE>
+</LI>
+<LI> hProject &amp; hSplit both take an HList as their second argument as
+well as the first. (See paper for definitions).
+</LI>
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+<BR />
+</CENTER>
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

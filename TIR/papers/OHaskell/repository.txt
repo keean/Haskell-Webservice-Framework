@@ -1,0 +1,456 @@
+\oleg{Actually, we do not adopt Remy's techniques:
+ML-ART is about representing an object as a pair of a state record and
+the method record. Also, Remy uses recursive types and
+existentials. Perhaps say: ``we adopt existing encoding techniques,
+overcoming some of their limitations, cite Remy.'' Value recursion is
+mentioned in Remy, along with its serious limitations, the mfix
+problem. We overcome it. There is still a problem that an object
+should carry the whole message table with it -- rather than just the
+pointer to the message table. Well, such is life in Perl as well.}
+
+{-   Some old stuff
+ 
+-- Note: the getWidth field could be associated with width itself
+-- rather than with IO width. However, the getCrossSection field is definitely
+-- associated with an IO action: creation of an object of a class
+-- rectangle. Therefore, for uniformity, we associate all fields
+-- with IO actions.
+class_cuboid width height depth self
+  = do
+      returnIO $
+           getWidth        .=. returnIO width
+       .*. getHeight       .=. returnIO height
+       .*. getDepth        .=. returnIO depth
+       .*. getCrossSection .=. mfix (class_rectangle width height)
+       .*. emptyRecord
+
+-- A subtype of a cuboid. 
+-- We override the method getCrossSection to have a co-variant return type
+-- We have to use 
+-- (super .-. getCrossSection) rather than .<. super
+class_cube width self
+  = do
+      super <- class_cuboid width width width self
+      returnIO $
+           getCrossSection .=. mfix (class_square width)
+       .*. (super .-. getCrossSection)
+
+-- compute the volume of a cuboid
+handle_cuboid cuboid =
+    do
+    xs <- cuboid # getCrossSection
+    w  <- xs # getWidth
+    h  <- xs # getHeight
+    d  <- cuboid # getDepth
+    return (d * w * h)
+
+test1 = do
+	cuboid <- mfix (class_cuboid 10 20 30)
+	cube   <- mfix (class_cube 40)
+	putStrLn "Volume of cuboid"
+        handle_cuboid cuboid >>= print
+	-- Now, pass a cube to a function that expects a cuboid
+	-- This shows that cube is substitutable for a cuboid
+	putStrLn "Volume of cube"
+        handle_cuboid cube >>= print
+	print "OK"
+-}
+
+
+We can simply constrain @self@. As a matter of discipline, we do not
+want to rewrite the earlier definition of the @abstract_point@ value.
+Instead, we add an \emph{inapplicable} equation whose only purpose is
+to impose a type constraint on the class:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ abstract_point (x_init::a) self 
+  | const False (
+      (narrow self) :: Record (  GetX  :=: IO a
+                             :*: MoveX :=: (a -> IO ())
+                             :*: HNil ) )
+  = \undefined
+\end{Verbatim}
+
+That is, we have written an equation with an always failing guard
+(cf.\ @const@~@False@) that nevertheless imposes typing constraints.
+The equation evaluates to \undefined, which is Ok because it will
+never be chosen anyhow. The @constrain@ operation processes a record,
+i.e., @self@. An application of the operation must be annotated with a
+type for a list of label-component pairs.
+
+...
+
+whether the listed labels
+occur in the given record, and whether the components are of the
+required types. As we can see in the type annotation, we let
+@constrain@ return a type proxy. This makes it crystal-clear that no
+interesting computation is performed: type-checking is of only
+interest here. (Once again, syntactic sugar could make this idiom look
+less idiosyncratic, but we are keen to reveal the true
+technicalities.)
+
+...
+
+
+
+In OOHaskell, the
+form @constrain@ can be implemented as a function that checks whether
+the argument record can be narrowed to the result record
+type. Narrowing is a simple type-driven projection operation on
+records, which lives in the
+\HList\ library. It is enough to attempt narrowing at the
+type level alone because we are not interested in a coerced value
+here. That is:
+
+\begin{code}
+ constrain :: Narrow r l => Record r -> Proxy l
+ constrain = const proxy
+\end{code}
+
+
+
+\subsubsection{Access control}
+
+We note that the variable @varX@ is public in the OOHaskell definition
+of @point@~---~just as in the OCaml code. Hence, we can manipulate
+@varX@ directly:
+
+\begin{code}
+ mySecondOOP =
+  do 
+     p <- point
+     writeIORef (p # varX) 42
+     p # getX >>= Prelude.print
+\end{code}
+
+\begin{code}
+ ghci> mySecondOOP
+ 0
+ 42
+\end{code}
+
+Making the mutable variable private is no problem at all. We simply do
+not provide direct access to the IORef in the record, i.e., we omit
+the variable @varX@. (This was illustrated in the shapes example.) 
+Using the delete operation for record components, we can also restrict
+access after the fact.
+
+
+
+\begin{comment}
+
+Ralf says: Oleg, do you agree that the following is not needed
+since we don't have any references to peer-rewiewed published 
+attempts.
+
+There have been several attempts, which~---~although may
+appear adequate for a restricted problem at hand~---~clearly fall
+short of the complete OO encoding. 
+
+\end{comment}
+
+
+\subsection{Enduring attention, unabated controversy}
+
+We have observed widespread confusions regarding the relation between
+Haskell's type classes and the object-oriented notion of classes. At
+times these two sorts of classes are said to be very much different,
+perhaps even largely orthogonal, incomparable. Elsewhere it is argued
+that Haskell's type classes are like Java's interfaces, while
+instances are like implementations, but subtyping would be missing in
+this picture.  Again, elsewhere it is observed that multi-parameter
+classes exhibit some flavour of multi-dispatch in OOP, which does not
+get us very far however in the view of other missing OOP
+essentials. It is often considered a mistake to attempt OOP in
+Haskell, to transcribe Java or C++ classes in Haskell, to perhaps even
+try to use use Haskell's type classes to that end.
+
+
+
+
+\begin{comment}
+
+In Sec.~\ref{S:HList}, we briefly review the \HList\
+library~\cite{HLIST-HW04}, which provides extensible polymorphic
+heterogeneous records with first-class labels.  In
+Sec.~\ref{S:simple}, we introduce more basic OO notions such as
+objects and constructors. In Sec.~\ref{S:self}, we describe open
+recursion, which allows us to cover rich forms of inheritance.  In
+Sec.~\ref{S:shapes}, we handle a prototypical scenario for subtype
+polymorphism in detail. In~\ref{S:disc}, we very briefly discuss all
+remaining issues~---~including some technicalities, conclusions, and
+directions for future work.
+
+\end{comment}
+
+
+
+There have been several
+attempts to \emph{extend} Haskell so that object-oriented programming
+becomes possible (e.g., \cite{HS95,MC97,Nordlander02}). It is unclear
+to what extent Haskell~98 alone, or with common extensions can encode
+object-oriented idioms.
+
+
+\noindent
+The \HList\ library provides convenience support for such labels.\\
+For instance, records are printed using the underlying \emph{type
+name} for labels:
+
+\begin{code}
+ ghci> show (xbase .=. 0 .*. ybase .=. 0 .*. emptyRecord)
+ "Record{xbase=0,ybase=0}"
+\end{code}
+
+\noindent
+(Here, we rely on derivable @Typeable@ instances per label type.)
+
+\medskip
+
+I guess my point is to emphasize that our encoding is not contrary to
+the dominant OO intuition; all standard notions about overriding,
+inheritance, etc. continue to apply. So,  I know that is fuzzy, but I
+feel that expressiveness has to be addressed somehow (otherwise,
+people like George Russel will say: of course you can do OO in
+Haskell: Haskell is Turing-complete).}
+
+
+\begin{comment}
+
+The abstract will say that it is widely believed that the typeclasses
+mechanism and OO are orthogonal (cf. messages on comp.lang.functional
+by Andreas Rossberg). We need at least , which . At this year workshop, we
+showed that Haskell already has extensible records with first-class
+reusable labels. It seems possible to implement keyword-argument
+functions (as those in DSSSL) with full static checking. So, the
+question, if Haskell as it is can implement an OOP system --
+especially the advanced one as that of OCaml. Especially in the same
+or similar syntax (macro-expressibility). In the end, we show that
+typeclasses along with X and Y extensions are sufficient to implement
+OOP, and typeclasses and OOP are not orthogonal.
+
+\end{comment}
+
+
+	BTW, regarding co- and contra-variance. I have read some
+lecture notes based on Abadi, Cardelli's theory of objects, which
+explained that all this co- and contra- variance is the direct
+_consequence_ of the simple type subsumption rule. In our case, type
+subsumption (of classes and objects) is guaranteed and enforced by the
+type system. So, by definition, we are doing the right thing with
+respect to co- and contra- variance.
+
+	I have found yet another example where we can shine. Something
+that requires a really advanced type theory of objects (and something
+that we can do without that). Also, Andreas Rossberg has remarked
+on Oct 12, 2004 on comp.lang.functional that polymorphic record fields in
+OCaml aren't really formalized (a lot of record stuff isn't formalized
+at all). So, we are formalizing them by reduction to type classes.
+
+
+% Mention System $F_{\omega}^{sub}$
+
+
+\oleg{Have a special section on contributions, and just enumerate the
+contributions from the abstract? Mention that Haskell -macro-expresses
+OOP of OCaml. The trick with methods -- another approach to the
+problem of `this'.}
+
+\oleg{Object Identity: because we are in IO monad, we can use
+  StabeName for object identity}
+
+\oleg{class identity: two objects belong
+to the same class if they respond to the same messages, i.e.,  they
+are 'subtypes' of each other, where 'subtype' is taken to be the
+ordinary record inclusion subtyping.}
+
+\oleg{Regading dispatch: currently our dispatch is sort of dynamic:
+  because the run-time representation of records is
+  ((label,val), (label2,val2), ...)\\
+However, we can do ((label,label2, ...), (val,val2,...))\\
+and thus share the label record across all the objects. Also, the
+compiler may be able to do the Label->slot conversion operation at
+compile time. So, our system becomes similar to that of C++}
+
+
+
+Other issues (raised by Ralf, in a message as of Aug 23, 2004)
+
+Desirable features:
+
+- showing full coverage of the OCaml tutorial
+- by going beyond that (say by covering mixins, and other wild stuff, 
+perhaps even AOP)
+- by making it convenient to use via syntactic sugar (or at least 
+reflecting on this possibility)
+- by delivering a little case study
+- by perhaps using DHaskell
+
+
+Here are some concrete questions, in case we get started with that:
+
+1.
+What kind of scenarios should we work through?
+Oleg seems to suggest http://caml.inria.fr/ocaml/htmlman/manual005.html
+Any other concrete sources?
+Yes: http://www.merjis.com/developers/ocaml_tutorial/ch8
+
+2.
+Should we show the rather untyped Scheme version as well?
+We could have untyped versions in other languages, too. Prolog?
+If yes, why? I guess to score with compile time resolution of some
+issues like method table lookup?! To score of course also with normal 
+typing.
+Dan Friedman: Object-Oriented style (on his web page)
+
+
+3.
+Should we talk about syntactic sugar?
+If yes, what techniques should be discussed?
+
+4.
+Should we work harder on error messages?
+One would really expect OOish error messages sometimes.
+
+5.
+We seem to need a little case study.
+Any ideas for a subject matter?
+
+6.
+We have reflection enabled I guess to some extent with the model.
+Given an object we can retrieve all kinds of useful information,
+or we can wrap some of its methods.
+
+Plus some extra tricks, like maintaing an object pool
+of all relevant IORefs, we could really do some sort of AOP or
+just low-level reflection. (Well it seems that we would need to maintain
+the typeful list of all objects in the state. So we would back to the 
+intriguing question of a state-type-changing monad.)
+
+Do you see what I mean?
+If we can make this work, we would really get an AOP-like or fully 
+reflective
+language. Say at a given point in time, we could map over the object store,
+and systematically adapt methods that match a certain predicate. Or would
+we perhaps use syntactic sugar to always detour to some AOPish registry when
+fields are get/set accessed, when methods are invoked? I have to think 
+more of this.
+
+7.
+More than that.  In OO, a kind of strong challenge is to represent
+design pattern solutions as OO code. See some of my papers on the
+subject. I think we could score awefully well in OHaskell. Wow! Think
+of a vistor, for instance. We already know how to that it is more or
+less a recursive map.
+
+8) Scalability
+
+I cite from TypeEqTTypeable.hs:
+
+{-
+    We got this:
+     Context reduction stack overflow; size = 21
+     Use -fcontext-stack20 to increase stack size to (e.g.) 20
+    So we reduced the test suite a bit.
+ 
+-}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% RELATED WORK
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+OHaskell~\cite{OHaskell,Nordlander98,Nordlander02}
+
+We know related work as far as Haskell is concerned (TIR, TIPs,
+etc). We need to mention the old OHaskell, of which I know nothing. Of
+course we should mention some OO classics and Ohori calculus... OTH,
+because the thrust is to implement an OO system in Haskell as it is,
+using typeclasses and equality, we should concentrate on Haskell
+rather than on OO. We do not claim to have reformed OO. We should show
+how people have tried implementing OO in Haskell (using records, for
+example), and why it did not work (records are not open in current
+Haskell; they needed extensions such as TREX). Again, our major claim
+is to clarify the relation between typeclasses and OO as two major
+ways of implementing non-ad-hoc overloading.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SUGAR
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Talk about syntax extensions and error messages.
+
+Better syntax for the labels: avoid ``data Label = Label'' or the
+``nextLabel'' stuff. A simple, straightforward sugar will be helpful.
+Important difference from OCaml: our sugar is just that. We do not
+require any extensions to the type system, no equi-recursive types,
+etc.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SOPHISTICATIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{comment}
+What kind of scenarios should we work through?
+Oleg seems to suggest http://caml.inria.fr/ocaml/htmlman/manual005.html
+Any other concrete sources?
+
+2.
+
+Should we show the rather untyped Scheme version as well?
+We could have untyped versions in other languages, too. Prolog?
+If yes, why? I guess to score with compile time resolution of some
+issues like method table lookup?! To score of course also with normal typing.
+
+3.
+
+Should we talk about syntactic sugar?
+If yes, what techniques should be discussed?
+
+4.
+
+Should we work harder on error messages?
+One would really expect OOish error messages sometimes.
+
+5.
+
+We seem to need a little case study.
+Any ideas for a subject matter?
+
+6.
+
+We have reflection enabled I guess to some extent with the model.
+Given an object we can retrieve all kinds of useful information,
+or we can wrap some of its methods.
+
+Plus some extra tricks, like maintaing an object pool
+of all relevant IORefs, we could really do some sort of AOP or
+just low-level reflection. (Well it seems that we would need to maintain
+the typeful list of all objects in the state. So we would back to the intriguing
+question of a state-type-changing monad.)
+
+Do you see what I mean?
+If we can make this work, we would really get an AOP-like or fully reflective
+language. Say at a given point in time, we could map over the object store,
+and systematically adapt methods that match a certain predicate. Or would
+we perhaps use syntactic sugar to always detour to some AOPish registry when
+fields are get/set accessed, when methods are invoked? I have to think more of this.
+
+7.
+
+More than that.
+In OO, a kind of strong challenge is to represent design pattern solutions as
+OO code. See some of my papers on the subject. I think we could score awefully
+well in OHaskell. Wow! Think of a vistor, for instance. We already know how to
+that it is more or less a recursive map. 
+\end{comment}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,0 +1,38 @@
+mySelfishOOP
+9
+myPolyOOP
+3
+3.5
+myFirstClassOOP
+42
+myFirstClassOOP
+so far - 42
+color  - "red"
+myColoredOOP
+(5,"red")
+myOverridingOOP
+so far - 5
+color  - "red"
+testGeneric
+14
+testVirtual
+7
+9
+9
+testVirtual'
+7
+9
+9
+testRestricted
+7
+9
+testRestricted'
+7
+9
+myDiamondOOP
+super1: 42
+super2: 42
+super3: 42
+super1: 46
+super2: 46
+super3: 44

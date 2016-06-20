@@ -1,0 +1,400 @@
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Simple objects and classes}
+\label{S:simple}
+
+We start with the very bascis of class-based OO: objects as capsules
+of mutable data and methods. Objects are constructed from object
+templates (or classes). The construction process can be parameterised,
+which eventually leads to the concept of constructor methods.  Object
+templates (or constructor methods) can perform extra computations at
+object creation time, and they can even maintain state on their own.
+
+\myskip
+
+\noindent
+The following batch of examples is adopted from the first section of
+the OCaml tutorial~\cite[\S\,3.1]{OCaml}. We are keen to mimic the
+OCaml in some cases because this suggests a direct, local translation.
+The source code distribution for this paper contains many additional
+examples~\cite{OOHaskell}.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Packaging mutable data and methods}
+
+Quoting from~\cite[\S\,3.1]{OCaml}:\footnote{Throughout the paper and
+the source code distribution, we took the liberty to rename some
+identifiers and to massage some subminor details while quoting
+portions of the OCaml tutorial.}
+
+\begin{quote}\itshape
+``The class @point@ below defines one instance variable @x@ and two
+methods @getX@ and @move@. The initial value of the instance variable
+is @0@. The variable @x@ is declared mutable, so the method @move@ can
+change its value.''
+\end{quote}
+
+\antiskip
+
+\begin{code}
+ class point =
+   object
+     val mutable x = 0
+     method getX   = x
+     method move d = x <- x + d
+   end;;
+\end{code}
+
+\noindent
+The transcription to Haskell starts with the declaration of all the
+labels that occur in the OCaml code. Here is the sugar-free version of
+these declarations:
+
+\begin{code}
+ data MutableX; mutableX = proxy::Proxy MutableX
+ data GetX;     getX     = proxy::Proxy GetX
+ data Move;     move     = proxy::Proxy Move
+\end{code}
+
+\noindent
+Then, the @point@ class is defined as the following Haskell value:
+
+\begin{code}
+ point = 
+   do
+      x <- newIORef 0
+      returnIO
+        $  mutableX .=. x
+       .*. getX     .=. readIORef x
+       .*. move     .=. (\d -> do modifyIORef x ((+) d))
+       .*. emptyRecord
+\end{code}
+
+\noindent
+Note how the Haskell code mimics the OCaml code. We use Haskell's
+@IORefs@ to model mutable variables. (We do not use any magic of the
+IO monad. We could as well use the simpler ST monad, which is very
+well formalised~\cite{LPJ95}. In fact, the code distribution for the
+paper explores this option.) The @point@ class stands revealed as a
+monadic @do@ sequence that first creates an @IORef@ for the mutable
+variable, and then returns a record for the new @point@ object. In
+general, such records provide access to the public methods of the
+object and to the @IORefs@ for public mutable variables.
+
+Let's now instantiate the @point@ class and invoke some methods. To
+provide a reference, we include the log of an OCaml session, which
+shows some inputs and the responses of the OCaml interpreter:
+
+\begin{code}
+ let p = new point;;
+ val p : point = <obj>
+\end{code}
+
+\begin{code}
+ p#getX;;
+ - : int = 0
+\end{code}
+
+\begin{code}
+ p#move 3;;
+ - : unit = ()
+\end{code}
+ 
+\begin{code}
+ p#getX;;
+ - : int = 3
+\end{code}
+
+\noindent
+In Haskell, we capture this program in a monadic @do@ sequence because
+we employ the @IO@ monad with its @IORefs@ for the mutable fields. So
+object construction and method invocations look as follows:
+
+\begin{code}
+ myFirstOOP =
+  do
+     p <- point -- no need for new!
+     p # getX >>= Prelude.print
+     p # move $ 3
+     p # getX >>= Prelude.print
+\end{code}
+
+\noindent
+When we run this Haskell program, we get the same result as OCaml:
+
+\begin{code}
+ ghci> myFirstOOP
+ 0
+ 3
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Trivial access control}
+
+\noindent
+We note that the field @mutableX@ is public~---~just as in the OCaml
+code above.\\
+Hence, we can manipulate @mutableX@ directly:
+
+\begin{code}
+ mySecondOOP =
+  do 
+     p <- point
+     writeIORef (p # mutableX) 42
+     p # getX >>= Prelude.print
+\end{code}
+
+\begin{code}
+ ghci> mySecondOOP
+ 0
+ 42
+\end{code}
+
+\noindent
+Making the mutable variable private is no problem at all. We simply do
+not provide direct access to the IORef in the record, i.e., we omit
+the field @mutableX@. Using the delete operation of record calculus,
+we can also restrict access after the fact. (More interesting options
+for access control arise once we cope with the notion of \emph{self}.)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Parameterised classes}
+
+Quoting from~\cite[\S\,3.1]{OCaml}:
+
+\begin{quote}\itshape
+``The class @point@ can also be abstracted over the initial values of
+the @x@ coordinate.  The parameter @x_init@ is, of course, visible in
+the whole body of the definition, including methods. For instance, the
+method @getOffset@ in the class below returns the position of the
+object relative to its initial position.''
+\end{quote}
+
+\antiskip
+
+\begin{code}
+ class para_point x_init =
+   object
+     val mutable x    = x_init
+     method getX      = x
+     method getOffset = x - x_init
+     method move d    = x <- x + d
+   end;;
+\end{code}
+
+\noindent
+Non-parameterised classes are represented as computations in Haskell.
+Consequently, parameterised classes are represented as monadic
+functions (i.e., functions that return computations). Hence, the
+parameter @x_init@ ends up as a plain function argument:
+
+\begin{code}
+ para_point x_init
+   = do
+        x <- newIORef x_init
+        returnIO
+          $  mutableX  .=. x
+         .*. getX      .=. readIORef x
+         .*. getOffset .=. queryIORef x (\v -> v - x_init)
+         .*. move      .=. (\d -> modifyIORef x ((+) d))
+         .*. emptyRecord
+\end{code}
+%%% $
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Constructor functionality}
+
+Quoting from~\cite[\S\,3.1]{OCaml}:
+
+\begin{quote}\itshape
+``Expressions can be evaluated and bound before defining the object
+body of the class. This is useful to enforce invariants. For instance,
+points can be automatically adjusted to the nearest point on a grid,
+as follows:''
+\end{quote}
+
+\antiskip
+
+\begin{code}
+ class adjusted_point x_init =
+   let origin = (x_init / 10) * 10 in
+   object
+     val mutable x    = origin
+     method getX      = x
+     method getOffset = x - origin
+     method move d    = x <- x + d
+   end;;
+\end{code}
+
+\noindent
+This ability is akin to functionality in constructor methods known
+from mainstream OO languages. Using the OCaml notation as given above,
+one can also define different constructors for the same type of
+object. The Haskell transcription simply takes the following sentence
+from the OCaml tutorial literally: ``Expressions can be evaluated and
+bound before defining the object body of the class''. That is, we use
+local lets prior to returning the construced object:
+
+\begin{code}
+ adjusted_point x_init
+   = do
+        let origin = (x_init `div` 10) * 10
+        x <- newIORef origin
+        returnIO
+          $  mutableX  .=. x
+         .*. getX      .=. readIORef x
+         .*. getOffset .=. queryIORef x (\v -> v - origin)
+         .*. move      .=. (\d -> modifyIORef x ((+) d))
+         .*. emptyRecord
+\end{code}
+%%% $
+\noindent
+(The fact whether such lets are computed \emph{at all} depends, of
+course, on the strictness of the program due to Haskell's lazyness. So
+`before' is not meant in a temporal sense.)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Nested object templates}
+
+Quoting from~\cite[\S\,3.1]{OCaml}:
+
+\begin{quote}\itshape
+``The evaluation of the body of a class only takes place at object
+creation time.  Therefore, in the following example, the instance
+variable @x@ is initialized to different values for two different
+objects.''
+\end{quote}
+
+\antiskip
+
+\begin{code}
+ let x0 = ref 0;;
+ val x0 : int ref = {contents = 0}
+\end{code}
+
+\begin{code}
+ class incrementing_point :
+   object
+     val mutable x = incr x0; !x0
+     method getX   = x
+     method move d = x <- x + d
+   end;;
+\end{code}
+
+\begin{code}
+ new incrementing_point#getX;;
+ - : int = 1
+\end{code}
+
+\begin{code}
+ new incrementing_point#getX;;
+ - : int = 2
+\end{code}
+
+\noindent
+Before we transcribe the use of this OCaml idiom to Haskell, we
+observe that we can view the body of a class as the body of a
+constructor method. Then, any mutable variable that is used along
+subsequent invocations of the constructor functionality can be viewed
+as belonging to a class object. So we arrive at a nested object
+template.
+
+\begin{code}
+ incrementing_point = 
+   do 
+      x0 <- newIORef 0
+      returnIO (
+        do modifyIORef x0 (+1)
+           x <- readIORef x0 >>= newIORef
+           returnIO
+             $  mutableX .=. x
+            .*. getX     .=. readIORef x
+            .*. move     .=. (\d -> modifyIORef x ((+) d))
+            .*. emptyRecord
+       )
+\end{code}
+%%% $
+
+\noindent
+At the outer level, we do the computation for the point template.  At
+the inner level, we perform the computation that constructs points
+themselves. This value deserves a more OOP-biased name:
+
+\begin{code}
+ makeIncrementingPointClass = incrementing_point
+\end{code}
+
+\noindent
+A demo is worthwhile; it will reveal a powerful feature of OOHaskell:
+
+\begin{code}
+ myNestedOOP =
+   do
+      localClass <- makeIncrementingPointClass
+      localClass >>= ( # getX ) >>= Prelude.print
+      localClass >>= ( # getX ) >>= Prelude.print
+\end{code}
+
+\begin{code}
+ ghci> myNestedOOP
+ 1
+ 2
+\end{code}
+
+\noindent
+We effectively created a class in a scope, and then exported it,
+closing over a locally-scoped variable. We can't do such a class
+closure in Java! Java supports anonymous objects, but not anonymous
+first-class classes. C++ is nowhere close to such an ability.  
+
+\oleg{A reviewer commented: ``It seems to me that Java does have
+  anonymous classes (even if they have a name, this name may be used
+  more than once and cannot be used globally to access the class)}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+

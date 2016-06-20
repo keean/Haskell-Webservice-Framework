@@ -1,0 +1,56 @@
+<HTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide10.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide12.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+... Type Driven Operations
+
+<!-- END TITLE -->
+
+</H2>
+<P>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+
+<LI>We can also lift the array operations given earlier to the type level.</LI>
+<BR />
+<LI>We use a proxy to pass the type for the operation, to make explicit that the
+value is not used, and to avoid using `undefined'
+<BLOCKQUOTE><CODE>data HProxy t = HProxy</CODE></BLOCKQUOTE>
+</LI>
+<LI>An example of this lifting is:
+<BLOCKQUOTE><CODE>instance (HType2HNat l p i,HDelete l i l')<BR />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=> HDelete l (HProxy e) l' where<BR /><BR />
+&nbsp;&nbsp;&nbsp;hDelete l p = hDelete l (hType2HNat l p)</CODE></BLOCKQUOTE
+</LI>
+<LI>We find that we require both overlapping instances and fundeps to implement
+<CODE>hType2HNat</CODE>. It is possible to implement this in Haskell (with multi-parameter
+type classes and fundeps) - we will return to this later.
+</LI>
+
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+</P>
+<BR />
+</CENTER>
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

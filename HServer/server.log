@@ -1,0 +1,411 @@
+serverMain listening on: 8002
+accepting connections
+serverMain listening on: 8001
+accepting connections
+serverMain listening on: 8000
+accepting connections
+accepting connectioCnosn
+nection from: "localhost":60268
+aConnection from: "localhost":51922
+GET / HTTP/1.1
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+ccepting connections
+GET /favicon.ico HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+acceptingConnection from: "localhost":56503
+start
+ connections
+next
+start
+next
+start
+next
+start
+next
+start
+next
+accConnection from: "localhost":56504
+epting connections
+start
+next
+start
+GET / HTTP/1.1
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /favicon.ico HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /?uri=http://www.bbc.co.uk HTTP/1.1
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+http://www.bbc.co.uk:80/
+connectTo "www.bbc.co.uk" 80
+GET / HTTP/1.1
+Accept: text/html
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: 
+Accept-Language: en-us,en;q=0.5
+Connection: close
+Host: www.bbc.co.uk:80
+Keep-Alive: 300
+Referer: http://localhost:8001/
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Connection: close
+Content-Type: text/html
+Date: Tue, 23 Aug 2005 16:03:06 GMT
+Server: Apache/2.0.54 (Unix)
+Set-Cookie: BBC-UID=84f3607b94a87b7a3274d5029103225b3421984750a0c0c37bfaec089bd77c1e0Mozilla%2f5%2e0%20%28X11%3b%20U%3b%20Linux%20i686%3b%20en%2dUS%3b%20rv%3a1%2e7%2e10%29%20Gecko%2f20050803%20Firefox%2f1%2e0%2e6; expires=Sat, 22-Aug-09 16:03:06 GMT; path=/; domain=bbc.co.uk;
+Transfer-Encoding: chunked
+
+chunked
+Chunk: 23524
+GET /home/styles/import.css HTTP/1.1
+Accept: text/css,*/*;q=0.1
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /includes/tbenh.css HTTP/1.1
+Accept: text/css,*/*;q=0.1
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/v.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+aCcocnenpetcitnigo nc ofnrnoemc:t i"olnosc
+alhost":51932
+GET /images/sl.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/sra.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?urGiE=Th t/tipm%a3gAe%s2/Fs%t2.Fgwiwfw .HbTbTcP./c1o..1uk
+A
+cUcseeprt-:A giemnatg:e /Mponzgi,l*l/a*/;5q.=00 .(5X1
+1A;c cUe;p tL-iCnhuaxr sie6t8:6 ;I SeOn--8U8S5;9 -r1v,:u1t.f7-.81;0q)= 0G.e7c,k*o;/q2=000.5708
+0A3c cFeiprte-fEonxc/o1d.i0n.g6: 
+gz
+ip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/srb.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /?doHighlight=on;select=;uri=http://www.bbc.co.uk HTTP/1.1
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+http://www.bbc.co.uk:80/
+connectTo "www.bbc.co.uk" 80
+GET / HTTP/1.1
+Accept: text/html
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: 
+Accept-Language: en-us,en;q=0.5
+Connection: close
+Host: www.bbc.co.uk:80
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Connection: close
+Content-Type: text/html
+Date: Tue, 23 Aug 2005 16:03:21 GMT
+Server: Apache/2.0.54 (Unix)
+Set-Cookie: BBC-UID=34a3d00bd4a87c296254ebb1f11599b9fde17dd910d0a0a33b4a4ca8fbe78cbe0Mozilla%2f5%2e0%20%28X11%3b%20U%3b%20Linux%20i686%3b%20en%2dUS%3b%20rv%3a1%2e7%2e10%29%20Gecko%2f20050803%20Firefox%2f1%2e0%2e6; expires=Sat, 22-Aug-09 16:03:21 GMT; path=/; domain=bbc.co.uk;
+Transfer-Encoding: chunked
+
+chunked
+Chunk: 23524
+GET /home/styles/import.css HTTP/1.1
+Accept: text/css,*/*;q=0.1
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /includes/tbenh.css HTTP/1.1
+Accept: text/css,*/*;q=0.1
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/v.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/sl.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/st.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/sra.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/srb.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /go/ext/_auto/-/http://localhost:8001/?doHighlight=on;select=(...74);uri=http://www.bbc.co.uk HTTP/1.1
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /favicon.ico HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /home/styles/import.css HTTP/1.1
+Accept: text/css,*/*;q=0.1
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /includes/tbenh.css HTTP/1.1
+Accept: text/css,*/*;q=0.1
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/v.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/sl.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/st.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/sra.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /images/srb.gif HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: localhost:8001
+Keep-Alive: 300
+Referer: http://localhost:8001/?uri=http%3A%2F%2Fwww.bbc.co.uk&doHighlight=on&select=
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+localHandler: no more requests
+Closing connection: "localhost":60268
+application finally
+finally: close done
+localHandler: no more requests
+Closing connection: "localhost":56503
+application finally
+finally: close done
+localHandler: no more requests
+Closing connection: "localhost":56504
+application finally
+finally: close done
+localHandler: no more requests
+Closing connection: "localhost":51932
+application finally
+finally: close done
+localHandler: no more requests
+Closing connection: "localhost":51922
+application finally
+finally: close done

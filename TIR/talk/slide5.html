@@ -1,0 +1,54 @@
+<HTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide4.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide6.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+Typeful Heterogeneous Lists
+
+<!-- END TITLE -->
+
+</H2>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+
+<LI>Tuples (,,,) although heterogeneous cannot be indexed.</LI>
+<BR />
+<LI>Using Peano numbers (type level naturals), we could construct
+a function to access the Nth member, but that class would nead
+one instance for each possible tuple length.</LI>
+<BR />
+<LI>Solution: use a recursive definition based on right-associative binary products
+<BLOCKQUOTE><CODE>
+(Key,(Name,(Breed,(Price,()))))
+</CODE></BLOCKQUOTE></LI>
+<LI>Because we are interested in static typing we will use HCons and HNil instead:
+<BLOCKQUOTE><CODE>data HNil = HNil<BR />
+data HCons e l => HCons e l</CODE></BLOCKQUOTE>
+resulting in lists like:
+<BLOCKQUOTE><CODE>HCons Key (HCons Name (HCons Breed (HCons Price HNil)))</CODE></BLOCKQUOTE>
+</LI>
+
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+</CENTER>
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

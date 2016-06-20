@@ -1,0 +1,441 @@
+\section{Before Intro}
+
+We must address relavance and significance: for practioneers, for
+the programming language design, and for theory.
+
+The issue of OO and Haskell, OO classes vs. type classes shows up on
+Haskell mailing lists and websites with remarkable regularity.
+[
+the latest ones
+\url{http://www.haskell.org//pipermail/haskell/2004-June/014164.html}
+\url{http://www.haskell.org/tmrwiki/LearningHaskellNotes#head-f9911730c98633f6182b33ce159a77d72afc6d87}
+]
+
+One can't deny deep interest in this subject. The range of approaches and
+differences in opinion (see summaries in \cite{MonadReader3} as well as
+LearningHaskellNotes above) show that the question is unsettled one.
+The often repeated advice is that we can't do the ``classical'' OO in
+Haskell. If we wish for OO, it has to be done in a totally different
+(not often obvious: Message on Haskel-Cafe, form Alistair
+Bayley) way. If we wish to approach the classical OO of Java, C++,
+or of Javascript, etc., extensions to Haskell are needed. Such
+extensions have indeed been proposed, with the motivation of ...
+
+One of the main motivations, stated in \cite{MonadReader3} is to be able to
+bring OO programmers into Haskell fold, or to be able to port existing
+OO code to Haskell without totally rewriting it.  ``That said, it
+might be that you need to interface with external OO code, or you are
+porting an existing program and need to remain faithful to the
+original design, if only because you don't understand it well enough
+to convert it to a functional design.'' \cite{MonadReader3}.
+
+
+There is an intellectual challenge as well, of seeing if the
+conventional OO can at all be implemented in Haskell. The paper on
+imperative programming in Haskell \cite{peytonjoneswadler-popl93}
+epitomizes this approach. We should also mention FC++ \cite{fcpp-jfp},
+which attempted to see if Haskell Prelude can be implemented in
+C++. Clearly it is the (possibility) of a faithful translation rather the
+end result of it that is the motivation.
+
+The present paper follows the same intellectual tradition: can we
+faithfully implement X in Y (specifically excluding writing of the
+compiler for X in Y. Make this a footnote?)? Or, if X is expressible
+\cite{Felleisen90} in Y?  For one thing, we settle the question: the
+conventional OO is expressible in current Haskell without any new
+extensions. It turns out, Haskell98 plus multi-parameter type classes
+with functional dependencies are enough. Even overlapping instances
+are not essential (yet using them permits a more convenient
+representation of labels).  That conclusion has not been known
+before\footnote{ Haskell is not even supposed to have extensible
+  polymorphic records! At least that was the general belief until a
+  few months ago.  There were many debates on the Haskell mailing list
+  about adding such records to Haskell. At the Haskell 2003
+  workshop~\cite{HW03}, this issue was selected as prime topic for
+  discussion.}; and, as being emphasized by many people and reviewers,
+is novel and surprising.
+
+Our encoding of objects in this paper is deliberately conventional.
+Our goal is not to find some new way to encode objects; rather, find a
+way to realize the traditional object encoding based on record
+subtyping. One of the main goals of this paper is to be able represent
+the conventional OO code, in as straightforward way as possible.
+We wish to satisfy the real practical need expressed in
+\cite{MonadReader3}, that is [port code without undue mangling -- w/o
+  global transformation].
+
+For the sake of simplicity, our object encoding is simple, based on
+`flat' extensible records with subtyping. More efficient
+representation based on method table and field table is left for
+another paper. Although our current encoding is certainly not
+optimal, it is conceptually clearer. Furthermore, it is close to the
+object encoding used in such languages as Perl, Python, Lua, and thus
+helps in an earlier stated goal (correlating mainstream OO with
+Haskell).  The encoding is often the first one to be used when adding
+OO to the existing language -- and thus seems to be suitable starting
+point for us.  Again, for clarity and for easy correlation with
+practice, we will be concerend with mutable objects (implemented via
+|IORef| or |STRef|). Most OO system in
+practical use have mutable state. Functional objects bring quite
+an interesting twist and so will be considered in another paper.
+
+From one angle, the present paper can be considered an `inverse' of
+FC++. The latter tried to implement in C++ the quintessentials Haskell
+features: type inference, higher-order, non-strictness. The present
+paper illustrates faithful (to be more precise, in similar syntax and
+without requiring global program transformation) representation of one
+of the important C++ feature: OO. Section XXX discusses one of the
+popular benchmarks -- Shapes. 
+
+
+One may be tempted to dismiss the paper as ``just type hacking''. We
+defend both on the practical grounds, language design grounds, and the
+theoretical grounds \footnote{Multi-parameter type classes with
+  functional dependencies are \emph{not} a hack: they are
+  well-formalized and reasonably understood~\cite{SS04}.}. From the
+practical point of view: the fact that we found a quite unexpected
+(and unintended) use of a particular language feature does not mean
+that the result is practically useless. Template meta-programming in
+C++ has been the best known example of such ``type hacking''. And yet
+it has lead to |boost|, which has become a de facto tool for modern
+C++ programming (Adobe uses Boost:
+\url{http://lambda-the-ultimate.org/node/view/563#comment-4531}).
+Templates and template meta-programming have changed the very
+character of the language (\cite{fcpp-jfp})
+[Stroustrup interview? Need some reference. If we
+  can't find any, I can use LtU references
+\url{http://lambda-the-ultimate.org/node/view/663}
+(see comments by Scott Johnson)
+\url{http://lambda-the-ultimate.org/node/view/663#comment-5839}
+See also:
+\url{http://spirit.sourceforge.net/distrib/spirit_1_7_0/libs/spirit/phoenix/doc/preface.html}
+] and made generative
+research and practice in C++ possible (\cite{DSL-in-three-lang}).
+
+Just as C++ has become the laboratory for generative programming
+\cite{DSL-in-three-lang} and lead to such applications as FC++, we contend
+that Haskell can become the laboratory for OO design and development.
+To extend the motto by Simon Peyton-Jones, Haskell is not only the
+best imperative language. It is the best OO language as well.
+C++ programmers now routinely use parsing combinators, thanks to the
+|boost::spirit| library. Haskell programmers can likewise use OO idioms if it
+suits the problem at hand. We can experiment with OO features and gain
+experience, without the need to change Haskell compilers.
+
+We shall point out in Sections XXX and XXX (simple objects?),
+OOHaskell already exhibits features that are either bleading-edge or
+unattainable in mainstream OO languages: for example, first-class
+classes and class closures; statically typechecked collection classes
+with bounded polymorphism of collection arguments; multiple
+inheritance with user-controlled sharing. It is especially remarkable
+that these and more familiar object-oriented features are not
+introduced by fiat -- we get them for free. For example, the type of a
+collection with bounded polymorphism of elements is inferred
+automatically by the compiler. Abstract classes cannot be instantiated
+not because we say so but because the program will not typecheck
+otherwise.  \oleg{Mention more ``major byproducts'' from the sections
+  below} We have experienced first-hand the incredible amount of
+guidance Haskell type system gives in the design of OO features.
+
+We should not overlook a theoretical contribution. On one hand, it is
+indeed well-known that we can build OO systems on top of extensible
+records (introduced earlier in the HList paper) with a suitable notion
+of subtyping \cite{Cardelli-on-understanding}. Also, an
+object-oriented system with `flat' mutable objects is significantly
+simpler theoretically; one may think that none of the machinery
+[Pierce] of existential or recursive types is needed. We must point
+out that even mutable objects implemented on the top of extensible
+records are more complex than it may appear. The complexity comes from
+supporting inheritance and virtual methods. Even in the case of flat
+mutable objects (records of closures), the typing of `self' presents
+challenges (seem to require recursive type -- lift phrases from
+subsection ``{OOHaskell~---~A challenge}'' below). Furthermore, to implement
+a homogeneous list of objects all supporting the same interface (Shape
+example), one seem to need existential types. Both recursive types and
+existential make inference impossible, in current Haskell. The user
+must give explicit type annotations. In the paper we show that we
+support open recursion, virtual methods, and homogeneous lists of
+diferently implemented Shapes without resorting to recursive object
+types and to existentials. Therefore, the object types can be
+\emph{inferred}.
+
+Another theoretical problem -- even with mutable objects -- is the
+controversy regarding covariance and contravariance of method
+arguments \cite{SG04}, \cite{catcall}. Our work shows how to implement
+covariant methods (which are considered practically desirable [Eiffel
+  FAQ]) and statically (at compile-time) maintain soundness. Alas, due
+to the lack of space, we merely skim the topic and refer the reader to
+the code (and the next paper).
+
+
+List all the suboptimal OO encoding, with refs,
+and discuss their drawbacks (including earlier Shape examples).
+Mention that there are simpler solutions, but they all fall short of
+the complete OO encoding. This paper seems to be the one that treats
+OO in full generality, including open recursion, interface and
+implementation inheritance, subtyping.
+
+A reviewer wrote:
+``The encoding is quite simple --- it's surprising that
+everything is so easy --- yet not at all obvious. The paper isn't
+labelled as a pearl, but would certainly fit well in that category.''
+
+A reviewer wrote:
+``The result might seem poor and just containing clever tricks
+however it took 10 years to obtain that proof of concepts and this
+deserves attention.''
+
+
+We must mention two other issues: error messages and efficiency of
+encoding.
+
+One may think that the inferred types and error messages
+would be nearly incomrehensible. That is not actually the case.
+We give an example of the inferred type, in Section (about Selfish
+types). The type of the constructor, for example, 
+essentially lists all the fields of an object, both new and
+inherited. The error messages (e.g., from an attempt to instantiate
+|abstract_point|, in the same section) succinctly list just the
+missing field. In general, the clarity of error messages is undoubtably
+is an area that needs more research, and more research is
+being done (Sulzmann), which we or compiler writers may take advantage
+of. It must be mentioned that error messages in C++ (template
+instantiation) can be immensely
+verbose, spanning literally 30 and 40 packed lines. And yet boost and
+similar libraries that extensively use templates are gaining momentum.
+
+Another issue is the efficiency of the encoding.  In the present
+paper, we specifically post-poned any optimizations for the sake of
+conceptual clarity.  For example, although record extension is
+constant (run-)time, the field/method lookup is linear search. Clearly
+a more efficient encoding is possible: one reprentation of the labels
+in the \HList\ paper permits the total order among the labels (and label
+types! they are singleton types), which in turn, permits construction
+of efficient search trees. In this first OOHaskell paper, we chose the
+conceptual clarity over such optimizations.
+
+
+``For these reasons, the method is likely to be of limited value in
+practice, unless Haskell compilers start providing special support for
+the encoding itself. But showing the usefulness of such an encoding is
+the first step towards encouraging compiler writers to do so!''
+
+
+
+
+Todo: 
+\begin{enumerate}
+\item ``The power of the system is first proved by encoding some very basic
+examples from the ocaml tutorial. For this part, page 6 gives the basic
+encoding, but pages 7 to 9 just repeat this basic encoding, with no
+new information.''
+So, drop pages 7-9?
+\end{enumerate}
+
+% http://dblp.uni-trier.de
+
+
+\section{Introduction}
+
+\oleg{Explicitly enumerate the contributions.}
+
+\subsection*{OOP and Haskell~---~Married finally}
+\oleg{move this subsection up?}
+There is a widely shared perception regarding the relation between
+Haskell and object-oriented programming (OOP). That is, Haskell is
+thought to really lack OOP essentials. The functionally minded OOP
+aficionado could either wish for an extended Haskell, employ a
+multi-language setup such as .NET, or disregard Haskell and go for
+OCaml instead, which is known to be a mainstream functional
+programming language that provides an advanced OOP system. This
+perception is without basis. In this paper, we show how to program
+with mutable objects, inheritance, subtyping etc.\ \emph{in Haskell}
+using only common type-system extensions. More than that, we will end
+up with a comparatively rich combination of OO idioms, higher-order
+functional programming, and type inference. We therefore think that
+(OO)Haskell lends itself as environment for advanced and typed OO
+\emph{language design}. We will illustrate OOHaskell with a series of
+practical examples as they are commonly found in OO textbooks and
+programming language tutorials. We wish to make OOHaskell as easy as
+possible to use by an experienced OO programmer who is migrating to
+Haskell. We certainly could emulate the OO system of OCaml or Java by
+writing a compiler in Haskell for these languages. But that's not the
+sort of emulation we aim at. We wish our OOHaskell system to be just
+as expressive~\cite{Felleisen90} as the most advanced OO
+systems. Informally, we wish our OO code looked `just the same as
+native OO code'~---~or perhaps even better, with less syntactic sugar.
+
+
+\subsection*{OOHaskell~---~A challenge}
+
+We will marry Haskell and OO by going through the following sequence:
+extensible polymorphic records, record calculus, objects with mutable
+data, classes with subtyping, open recursion, inheritance,
+polymorphism. That sounds quite simple until we realise that, for one
+thing, Haskell is not even supposed to have extensible polymorphic
+records. At least that was the general belief until a few months ago.
+There were many debates on the Haskell mailing list about adding such
+records to Haskell. At the Haskell 2003 workshop~\cite{HW03}, this
+issue was selected as prime topic for discussion. Fortunately, this
+problem is resolved. In our very recent work on strongly typed
+heterogeneous collections~\cite{HLIST-HW04}, we have provided
+collection types such as extensible records using Haskell's type
+classes.
+
+There is a second major barrier for OOHaskell: the notion of
+`self'. That is, the realisation of objects with inheritance and
+polymorphism in terms of records seems to require (equi-) recursive
+types, to type `self'~\cite{PT94}.
+%
+% See p. 29 of the paper and the quotation from Bruce, 1992. Pierce
+% seems to agree that recursive types are needed to model inheritance
+% of methods involving self. -- beginning of the second paragraph
+% on p. 29
+%
+Such an extension to Haskell was also debated and then rejected
+because it will make type-error messages nearly
+useless~\cite{Hughes02}. There is an alternative technique for
+encoding objects: eschew recursive types in favour of existential
+quantification~\cite{PT94}. Unfortunately, the involved higher-ranked
+types can not be inferred anymore. Explicit signatures were required,
+which, in practical terms, means that the user must explicitly
+enumerate all virtual methods in the signature of any function that
+operates on an object. This technique cannot be used in OOHaskell
+because we would like OOP to be easy to use, first, by Haskell
+programmer. That is, we ought to preserve type inference for functions
+that use objects. Type inference is the great advantage of Haskell and
+ML and is worth fighting for. Fortunately, it \emph{is} possible to
+model imperative objects without equi-recursive types, as we will reveal in
+this paper.
+
+We want the OOP system for Haskell to be available and usable
+\emph{now}. That means that we have to build the OOP system, without
+adding any extensions to Haskell. The implementation of our system may
+be not for the feeble at heart~---~however, the user of the system
+must be able to write conventional OO code without understanding the
+complexity of the implementation. At present, error messages belie the
+complexity, and this is the topic of future research (and so it is for
+C++, where error messages in template meta-programs may span several
+hundred lines and be humanly incomprehensible).
+
+
+
+\subsection*{Type classes versus object classes~---~Confusions resolved}
+
+At the heart of our approach is the powerful deployment of Haskell's
+type classes. It will turn out that we can provide object classes
+because of Haskell's type classes. In fact, we build OOHaskell in
+terms of Hindley-Milner + multi-parameter type classes + functional
+dependencies. (Here we note that this combination is well-formalized
+and reasonably understood~\cite{SS04}.) Once we have extensible
+records with reusable labels and subtyping, we can model some sort of
+objects. The corresponding record types, suitably parameterised, are
+OOP-like classes then. Mutable objects can be modelled by using
+references such as the @IORef@s provided by Haskell's @IO@ monad.
+\oleg{move that up, where we discuss the confusion, etc? OTH, perhaps
+  move to the related work?}
+We have observed widespread confusions regarding the relation between
+Haskell's type classes and the object-oriented notion of classes. At
+times these two sorts of classes are said to be very much different,
+perhaps even largely orthogonal, incomparable. Elsewhere it is argued
+that Haskell's type classes are like Java's interfaces, while
+instances are like implementations, but subtyping would be missing in
+this picture.  Again, elsewhere it is observed that multi-parameter
+classes exhibit some flavour of multi-dispatch in OOP, which does not
+get us very far however in the view of other missing OOP
+essentials. It is often considered a mistake to
+attempt OOP in Haskell, to transcribe Java or C++ classes in Haskell,
+to perhaps even try to use use Haskell's type classes to that
+end.\footnote{See many mind-boggling discussions on mailing lists:
+\url{http://www.cs.mu.oz.au/research/mercury/mailing-lists/mercury-users/mercury-users.0105/0051.html},
+\url{http://www.talkaboutprogramming.com/group/comp.lang.functional/messages/47728.html},
+\url{http://www.haskell.org/pipermail/haskell/2003-December/013238.html},
+\url{http://www.haskell.org/pipermail/haskell-cafe/2004-June/006207.html},
+\ldots } We will shed light on the subject matter. That is, we will
+effectively use Haskell's type-class system to provide an OOP system
+for Haskell. This system will be similar to OCaml's system, which we
+view as a very strong existing marriage of functional programming and
+OOP.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Other OOP systems for Haskell}
+\oleg{move to the related work section. Add references to OO
+  encodings, in particular those based on extensible records:
+  \cite{Cardelli-on-understanding} and \cite{Remy94a}}
+There were attempts to bring OO to Haskell by language extension. An
+early attempt is Haskell++~\cite{HS95} by Hughes and Sparud. The
+authors motivated their extension by the perception that Haskell lacks
+the form of incremental reuse that is offered by inheritance in
+object-oriented languages. Our approach uses common extensions of the
+Hindley-Milner type system to provide the key OO notions.  So in a
+way, Haskell does \emph{not} lack expressiveness for OOP-like
+reuse. Haskell's fitness for OOP just had to be discovered, which is
+the contribution of this paper. Nordlander has delivered a
+comprehensive OOP variation on
+Haskell~---~O`Haskell~\cite{Nordlander98,Nordlander02}, which extends
+Haskell with reactive objects and subtyping. The subtyping part is a
+formidable extension. The reactive object part combines stateful
+objects and concurrent execution, again a major extension. Our
+development shows that no extension of Haskell is necessary for
+stateful objects with a faithful object-oriented type system. Finally,
+there is Mondrian~---~the NET-able version of Haskell. In the original
+paper on the design and implementation of Mondrian~\cite{MC97}, Meijer
+and Claessen write: ``The design of a type system that deals with
+subtyping, higher-order functions, and objects is a formidable
+challenge ...''. Rather than designing a very complicated language,
+the overall principle underlying Mondrian was to obtain a simple
+Haskell dialect with an object-oriented flavor. To this end, algebraic
+datatypes and type classes were combined into a simple object-oriented
+type system with no real subtyping, with completely covariant
+type-checking. In Mondrian, runtime errors of the kind ``message not
+understood'' are considered a problem akin to partial functions with
+non-exhaustive case discriminations. We raise the bar by providing
+proper subtyping (``all message will be understood'') and other OOP
+concepts in Haskell without extending the Haskell type system.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Plan of the paper}
+
+In Sec.~\ref{S:HList}, we briefly review the \HList\
+library~\cite{HLIST-HW04}, which provides extensible polymorphic
+heterogeneous records with first-class labels.  In
+Sec.~\ref{S:simple}, we introduce more basic OO notions such as
+objects and constructors. In Sec.~\ref{S:self}, we describe open
+recursion, which allows us to cover rich forms of inheritance.  In
+Sec.~\ref{S:shapes}, we handle a prototypical scenario for subtype
+polymorphism in detail. In~\ref{S:disc}, we very briefly discuss all
+remaining issues~---~including some technicalities, conclusions, and
+directions for future work.
+
+\oleg{add why we're using OCaml titorial. Maybe the following has to
+  be added at the beginning of the appropriate Section?}
+
+There are many OO systems based on open records, e.g., Perl, Python,
+Javascript, Lua, OCaml (check the list!). Of these, only Ocaml is
+statically typed. It behoves us therefore to compare OOHaskell with
+OCaml: OCaml has a similar motivation to ours (bridging OO and
+functional-programming, being able to faithfully port OO programs). On
+the other hand, OCaml chose to explicitly add extensible records and
+extend its type system with recursive types. The comparison with Ocaml
+is meaningful therefore: the same motivation, similar base language
+(H-M type system, inference), but different ways of introducing
+OO. Therefore, we draw many of the examples from OCaml object
+tutorial, to specifically contrast Ocaml and OOHaskell code and to
+demonstrate the fact that OCaml examples are expressible in OOHaskell,
+roughly in the same syntax. We also use the OCaml object tutorial
+because it is clear, comprehensive and concise.
+

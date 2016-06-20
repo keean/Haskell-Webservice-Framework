@@ -1,0 +1,145 @@
+
+* Leq example
+Taken from Duggan and Ophel, ``Open and Closed Scoped for constrained
+genericity'', Theoretical Comp. Sci, 1 (2001)
+http://guinness.cs.stevens-tech.edu/~dduggan/Public/Papers/index.html
+
+From p. 2 of the paper:
+
+``Parametrically polymorphic types are represented formally using type
+quantifiers.  For example the type of an operation for appending two
+lists can be defined as:
+
+forall alpha. List(alpha) -> List(alpha) -> List(alpha)
+
+Constrained polymorphic types enrich these types with constraints on
+the type parameters. For example, bounded type quantification [10]
+has been proposed for object-oriented languages with parametric
+polymorphism. With this approach, and using Java interfaces, the type
+of an operation for merging two sorted lists is given by:
+
+interface Leq { boolean leq (Object other); }
+forall alpha \less-than-or-equal Leq. List(alpha) -> List(alpha) -> List(alpha)
+
+This type requires that the elements of the list be objects, all
+providing the interface Leq that provides a comparison operation.
+This example is actually problematic for object-oriented
+languages. The problem is that the leq method must downcast the other
+argument to the expected type.  Although more precise static typing is
+possible using self types, and using match bounds instead of subtype
+bounds [9], there is not uniform acceptance of this ap- proach to
+binary methods [7].''
+
+I wonder if we can handle that example without unsafe downcasts?
+
+
+
+\oleg{issues to touch:\\
+ covariance, safe covariance, \\
+ depth subtyping,\\
+ balancing types in if \\
+ STref,\\
+ pure functional obj\\
+ recursive types
+}
+
+
+\section{Related work}
+
+
+\begin{comment}
+Furthermore, I think that encoding subtyping in Haskell's class system
+has already been considered much further in Lu and Sulzmann's work on
+XHaskell (to appear in APLAS'04, 2004). There, a much more
+sophisticated subtyping relationship for regular expression types is
+modeled in much the same way is in this paper.
+\end{comment}
+
+
+- REMY
+
+- subclassing polymorphism -> subtype polymorphism.
+- STRefs in addition to just IORefs.
+- Emphasize the first-classness of our classes in intro or conclusions
+- mutable data -> fields
+
+- emphasize in the introduction that we make no extensions to the type
+system of current Haskell, and in particularly, add no recursive
+types.
+
+- Currently (at least, yesterday), Introduction has discussed some
+related work. Perhaps we can expand on it and make the related work
+section a part of the Introduction.
+
+- You said that ECOOP is a practical conference. It's worth stating in
+the paper that we explain our contribution by the way of practical
+examples. Rather than giving formal judgments (e.g., maintaining
+inference, avoiding recursive types, encoding Ohori calculus), we give
+a series of working examples.
+
+
+
+
+\subsection{Class instantiation checking}
+
+
+\subsection{Co-/contra variance issues}
+
+
+\ralf{To be used from~\cite{catcall}}
+
+ABSTRACT: Goals of expressiveness and flexibility in typed
+object-oriented programming suggest a covariant type policy, where
+routine redefinitions can change the types of both arguments and
+results in the same direction as the inheritance
+hierarchy. Unfortunately, a careless covariant policy, when combined
+with polymorphism, genericity and dynamic binding other O-O mechanisms
+that are just as fundamental may lead to run-time type violations
+known as catcalls. We present a new solution to this problem,
+resulting from recent advances in the Eiffel language, which enables
+compilers to spot all potential catcalls and forces programmer to
+resolve them. The resulting language rules statically guarantee type
+safety; they only require local analysis and are easy to explain to
+programmers.
+
+OVERVIEW: The well-known risk of runtime errors (catcalls) arising
+from covariant redefinition has led many language designers to
+prohibit covariance and limit generic mechanisms avoiding that risk
+but limiting programmers power of expression. We present a new set of
+language mechanisms and rules, introduced into Eiffel as part of
+standardization at ECMA, which we believe provide a satisfactory
+solution to the problem, ensuring full type safety without limiting
+expressiveness. ...
+
+\ralf{To be used from~\cite{SG04}}
+
+ABSTRACT: We present a programming technique for implementing type
+safe covariance in C++. In a sense, we implement most of Bruce's
+matching approach to the covariance dilemma in C++. The appeal in our
+approach is that it relies on existing mechanisms, specifically
+templates, and does not require any modification to the existing
+language. The practical value of the technique was demonstrated in its
+successful incorporation in a large software body. We identify the
+ingredients of a programming language required for applying the
+technique, and discuss extensions to other languages.
+
+INTRODUCTION: On the other hand, it is impossible to statically
+type-check inclusion polymorphism [6] when covariance is
+allowed. Suppose for example that instances of child can be freely
+used at any place where instances of person might. Then, one of these
+places, might associate a certain physician who is not a pediatrician
+with a child. Such an association can only be prevented with runtime
+type checks.
+
+\subsection{Access modifiers}
+
+\subsection{Functional objects~---~future work}
+
+\subsection{Current limitations of the encoding}
+
+Typing error messages.
+
+Giant dictionaries.
+
+...
+ 

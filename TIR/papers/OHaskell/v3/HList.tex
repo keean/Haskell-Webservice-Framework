@@ -1,0 +1,322 @@
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Heterogeneous collections}
+\label{S:HList}
+
+The OOHaskell approach adopts typeful heterogeneous
+collections~\cite{HLIST-HW04} for the representation of objects, and
+for other purposes. In fact, all sorts of heterogeneous collections
+are derived from heterogeneous list. This observation gave the name to
+the Haskell library for heterogeneous collections: \HList. The
+heterogeneity of these lists allows us to line up objects with
+components of different types. The typefulness of these lists allows
+us to enforce constraints such as uniqueness of labels and subtyping
+for record extension. We will rehash the essentials of \HList{}s here,
+while focusing on the bits that are most relevant for OOHaskell. We
+refer to~\cite{HLIST-HW04} for a more general treatment.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Heterogeneous lists}
+
+These are the basic constructors of the \HList\ library:
+
+\begin{code}
+ data HNil      = HNil       deriving (Eq,Show,Read)
+ data HCons e l = HCons e l  deriving (Eq,Show,Read)
+\end{code}
+
+\noindent
+That is, there are two datatypes constructors @HNil@ and @HCons@
+corresponding to the two constructors @[]@ and @(:)@ of the normal
+list datatype. The chosen style of type parameterisation allows for
+list elements of different types. In fact, the two datatype
+constructors are isomorphic to the type constructors for empty
+products and binary products, but fresh symbols or chosen to avoid
+confusion. We only want to use @HNil@ and @HCons@ for the construction
+of nested, binary, right-associative products~---~as expressed by the
+following type class for \HList{}s:
+
+\begin{code}
+ class HList l
+ instance HList HNil
+ instance HList l => HList (HCons e l)
+\end{code}
+
+\noindent
+Using type-level programming (aka type-class-based programming), we can
+reify all kinds of list-processing functions on \HList{}s. Each such
+reified operation is placed in a dedicated type class whose instances
+discriminate on the type structure in the same way as the normal
+operations were defined by case discrimination (pattern matching) on
+algebraic data. For instance, a type-level append gives rise to a
+class like this:
+
+\begin{code}
+ class (HList l, HList l', HList l'')
+    =>  HAppend l l' l'' | l l' -> l''
+  where hAppend :: l -> l' -> l''
+\end{code}
+
+\noindent
+(We omit the two instances, which will perform induction on the first HList.)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\oleg{I propose to merge this and the following section. Here's the
+  outline of the new section.}
+
+\subsection{Record calculus and subtyping}
+
+OOHaskell's objects are modelled as records. The current version of
+the \HList\ library models records simply as lists of label-value
+pairs. (Other realisations, e.g., a pair of lists or a tree, are
+certainly possible.) Labels are distinguished by their
+\emph{types}. The \HList\ library offers several models of labels. We
+will pick a model shortly. We use an extra newtype @Record@ to tag
+lists of pairs as records:
+
+\begin{code}
+ -- Non-public constructor
+ newtype Record r = Record r
+ -- Public constructor with constraints
+ mkRecord :: HRLabelSet r => r -> Record r
+ mkRecord = Record
+ emptyRecord = mkRecord $ HNil
+\end{code}
+
+\noindent
+The set property for labels (cf.\ class @HRLabelSet@) \emph{statically}
+assures that all labels occur in the list of record's label-value
+pairs exactly once.
+We use an infix operator @.=.@ to form a label-value pair.  We use
+another infix operator @.*.@ to build up records. That is, suppose
+@l1@, @l2@ are labels, and @v1@, @v2@ are values, then we construct a
+record as follows:
+
+\begin{code}
+ myRecord =  l1 .=. v1
+         .*. l2 .=. v2
+         .*. emptyRecord
+\end{code}
+
+\noindent
+The operator @.=.@ coincides with pair construction: |l .=. v = (l,v)|.
+The operator @.*.@ models record extension:
+
+\begin{code}
+ (l,v) .*. (Record r) = mkRecord (HCons (l,v) r)
+\end{code}
+
+\noindent
+We can define all normal record operations: look-up, update, label
+renaming, and others. (Cf.\ App.~\ref{A:hTPupdateAtLabel} for sample
+definition: a type-preserving update operation.) We can also define
+(different kinds of) subtyping on records:
+
+\begin{code}
+ class SubType l l'
+ instance ( HZip ls vs r'
+      , HProjectByLabels ls (Record r) (Record r') )
+  =>    SubType (Record r) (Record r')
+\end{code}
+
+\noindent
+That is, a record type $r$ is a subtype of some record type $r'$ if
+$r$ contains at least the labels of $r'$, and the value types for the
+shared labels are the same. Subtyping is defined in terms of
+projection on records, while labels are used to control projection.
+We do not consider any sort of co-/contra-variance for the value types
+here, but we could do so without ado, including iteration of arrow
+types. Thereby, we can accommodate variance properties as needed for
+OO subtyping with co- or contra-variant method arguments. For
+instance, we can encode OCaml's approach to variance.
+
+
+\subsection{Oleg: This is the old text for the two sections.}
+
+\subsection{Representation of records}
+
+OOHaskell's objects are going to be modelled as records. The current
+version of the \HList\ library models records simply as lists of
+label-value pairs. (Other realisations, e.g., a pair of lists or a
+tree, are certainly possible.) Labels are distinguished by their
+\emph{types}. The \HList\ library offers several models of labels. We
+will pick a model shortly.
+
+Records can be zipped from two lists: one list for the labels, another
+list for the values. Records can also be unzipped. These are just two
+reified list-processing functions hosted by the class @HZip@:
+
+\begin{code}
+ class HZip x y l | x y -> l, l -> x y
+  where hZip   :: x -> y -> l
+        hUnzip :: l -> (x,y)
+\end{code}
+
+\noindent
+We use an extra newtype @Record@ to tag lists of pairs as records:
+
+\begin{code}
+ -- Non-public constructor
+ newtype Record r = Record r
+\end{code}
+\begin{code}
+ -- Public constructor with constraints
+ mkRecord :: (HZip ls vs r, HLabelSet ls) => r -> Record r
+ mkRecord = Record
+\end{code}
+\begin{code}
+ -- Empty record construction
+ emptyRecord = mkRecord $ hZip HNil HNil
+\end{code}
+
+\noindent
+The set property for labels (cf.\ class @HLabelSet@) is defined by
+iteration over the list of labels such that the heading label does not
+occur in the tail of the list, and the tail meets the set property as
+well. That is:
+
+\begin{code}
+ class HLabelSet ls
+ instance HLabelSet HNil
+ instance (HMember x ls HFalse, HLabelSet ls)
+       =>  HLabelSet (HCons x ls)
+ -- Membership-test uses type-level equality on labels.
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Record calculus and subtyping}
+
+We use an infix operator @.=.@ to form a label-value pair.  We use
+another infix operator @.*.@ to line up records. That is, suppose
+@l1@, @l2@ are labels, and @v1@, @v2@ are values, then we construct a
+record as follows:
+
+\begin{code}
+ myRecord =  l1 .=. v1
+         .*. l2 .=. v2
+         .*. emptyRecord
+\end{code}
+
+\noindent
+The operator @.=.@ coincides with pair construction:
+\begin{code}
+ l .=. v = (l,v) 
+\end{code}
+
+\noindent
+The operator @.*.@ models record extension:
+
+\begin{code}
+ (l,v) .*. (Record r) = mkRecord r'
+    where
+     (ls,vs) = hUnzip r
+     r'      = hZip (HCons l ls) (HCons v vs)
+\end{code}
+
+\noindent
+We can define all normal record operations: look-up, update, label
+renaming, and others. (Cf.\ App.~\ref{A:hTPupdateAtLabel} for sample
+definition: a type-preserving update operation.) We can also define
+(different kinds of) subtyping on records:
+
+\begin{code}
+ class SubType l l'
+ instance ( HZip ls vs r'
+      , HProjectByLabels ls (Record r) (Record r') )
+  =>    SubType (Record r) (Record r')
+\end{code}
+
+\noindent
+That is, a record type $r$ is a subtype of some record type $r'$ if
+$r$ contains at least the labels of $r'$, and the value types for the
+shared labels are the same. Subtyping is defined in terms of
+projection on records, while labels are used to control projection.
+We do not consider any sort of co-/contra-variance for the value types
+here, but we could do so without ado, including iteration of arrow
+types. Thereby, we can accommodate variance properties as needed for
+OO subtyping with co- or contra-variant method arguments. For
+instance, we can encode OCaml's approach to variance.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection{Declaration of first-class labels}
+
+Generally, labels are distinguished by their \emph{types}. The \HList\
+library readily offers 4 different models of labels. A very simple
+model of generating label types is to employ type-level naturals:
+@HZero@, @HSucc HZero@, @HSucc (HSucc HZero)@, \ldots.  For the sake
+of the programmer's convenience, it is preferable to use label types
+whose type names are readily meaningful. We will consider here one
+such option.
+
+We model labels as very carefully typed \emph{undefined} values that
+are proxies for distinguished and trivial datatypes. Let's suppose we
+need record types that involve labels @xbase@, @ybase@, and
+@radius@. Using the prime model of this paper, we declare these labels
+as follows.
+
+\begin{code}
+ data Xbase;  xbase  = proxy::Proxy Xbase
+ data Ybase;  ybase  = proxy::Proxy Ybase
+ data Radius; radius = proxy::Proxy Radius
+\end{code}
+
+\noindent
+(We note that simple syntactic sugar can reduce the length of these
+one-liners dramatically in case this is considered an issue.)  That
+is, we introduce dedicated types @Xbase@, @Ybase@, @Radius@ for the
+different labels. These types are `empty' in the sense that
+\undefined\ is the only inhabitant of these types. (There are no
+constructors!) We use the phantom type @Proxy@ for type proxies to
+represent labels as proxies for empty types. The \HList\ library
+defines type proxies as follows:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ data Proxy e; proxy :: Proxy e; proxy = \undefined
+\end{Verbatim}
+
+\noindent
+The explicit declaration of labels blends perfectly with Haskell's
+scoping rules and its module concept. If different modules with
+various record types want to share labels, then they have to agree on
+a declaration site that they all import. All models of \HList\ labels
+support labels as first-class citizens~---~we can pass them to
+functions etc.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

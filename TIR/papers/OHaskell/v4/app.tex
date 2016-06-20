@@ -1,0 +1,361 @@
+
+
+\medskip
+
+\section{Type extension by polymorphic data tails}
+
+Each OO class amounts to a normal Haskell record type, which has an
+extension point for subclassing so to say. This extension point is
+necessarily a component of a parametrically polymorphic type that is
+exposed as a type parameter of the record type. When we transcribe a
+subclass, we simply \emph{further} instantiate the record type for its
+base class with its own associated record type. Methods are simply
+defined for the record type that is sufficiently instantiated to allow
+access to the relevant components (at some level), but not more
+instantiated than necessary for the sake of subtyping
+polymorphism. Virtual methods need to be defined in dedicated Haskell
+type classes.
+
+There are some possible variations on this theme.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The Shape class}
+
+\begin{code}
+-- Mutable data of extensible shapes
+data Shape w =
+     Shape { getX     :: Int
+           , getY     :: Int
+           , shapeExt :: w
+           }
+
+-- Constructor for shapes
+shape x y w = Shape { getX = x
+                    , getY = y
+                    , shapeExt = w }
+
+-- Setters
+setX :: Int -> Shape w -> Shape w
+setX i s = s { getX = i }
+
+setY :: Int -> Shape w -> Shape w
+setY i s = s { getY = i }
+
+-- Move methods on shapes
+moveTo :: Int -> Int -> Shape w -> Shape w
+moveTo x y = setY y . setX x 
+
+rMoveTo :: Int -> Int -> Shape w -> Shape w
+rMoveTo deltax deltay s = moveTo x y s
+ where
+  x = getX s + deltax
+  y = getY s + deltay
+
+-- The abstract method for drawing shapes
+class Draw w
+ where
+  draw :: Shape w -> IO()
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The Circle class}
+
+\begin{code}
+-- The delta of circles
+data Circlish w =
+     Circlish { getRadius :: Int 
+              , circleExt :: w
+              }
+
+-- An extension of Shape
+type Circle w = Shape (Circlish w)
+
+-- A "closed" constructor
+circle x y r
+ = shape x y $ Circlish { getRadius = r
+                        , circleExt = () }
+
+-- Setter
+setRadius :: Int -> Circle w -> Circle w
+setRadius i s
+ = s { shapeExt = (shapeExt s) { getRadius = i } }
+
+-- Implement abstract draw method
+instance Draw (Circlish w)
+ where
+  draw s =  putStrLn ("Drawing a Circle at:("
+         ++ (show (getX s))
+         ++ ","
+         ++ (show (getY s))
+         ++ "), radius "
+         ++ (show (getRadius (shapeExt s))))
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The Rectangle class}
+
+Omitted. Very much like the Circle class.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{Scribble processing}
+
+\begin{code}
+-- Existential envelope for `drawables'
+data Drawable = forall a. Draw a
+  => Drawable (Shape a)
+
+-- Weirich's / Rathman's test case
+main =
+      do
+         -- Handle the shapes polymorphically
+         mapM_ ( \(Drawable x) -> 
+                   do
+                      draw x
+                      draw (rMoveTo 100 100 x))
+               scribble
+
+         -- Handle rectangle-specific instance
+         draw $ setWidth 30 arectangle
+
+      where
+         -- Create some shape instances
+         scribble = [
+            Drawable (rectangle 10 20 5 6),
+            Drawable (circle 15 25 8)]
+
+         -- Create a rectangle instance
+         arectangle = (rectangle 0 0 15 15)
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\section{Type extension by record composition}
+
+
+As an aside, one may actually argue that this approach is less about
+inheritance; it is perhaps closer to delegation. Each OO class
+amounts to a normal Haskell record type, where a derived class
+aggregates a component for its ancestor class. When a method is
+introduced at some level in the inheritance hierarchy we just define
+it for that very type. We can represent the inheritance hierarchy by
+means of a dedicated subtyping class which also allows us to lift
+methods from the introducing class to subclasses. Virtual methods need
+to be defined in dedicated Haskell type classes.
+
+
+
+There are some possible variations on this theme.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The concept of subtyping} 
+
+We keep track of the OO inheritance hierarchy by means of a dedicated
+Haskell class @Subtype@. This class hosts two methods for applying
+observers vs.\ mutators to objects. This is an essential convenience
+layer for defining accessors (getters/setters) on object types such
+that they also work on derived types.
+
+The use of a two-parameter type-class is not really essential.  In
+Haskell 98, we would simply specialise this type-class per OO class.
+MP Jones and SP Jones adopt this idea in "OO style overloading for
+Haskell", even though they do not consider state.
+
+Note that there is a reflexive instance for subtyping. It would be
+possible to eliminate the use of a generic instance.  That is we could
+use specific instances per actual OO class.  Transitivity (along
+subtyping chains) is not so easily taken care of. For each new type,
+we need to provide instances for all ancestors.
+
+
+\begin{code}
+infix 7 .?. -- observation
+infix 7 .!. -- mutation
+
+class Subtype a b where
+ (.?.) :: (b -> r) -> a -> r
+ (.!.) :: (b -> b) -> a -> a
+
+instance Subtype a a where
+ (.?.) = id
+ (.!.) = id
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The Shape class}
+
+\begin{code}
+-- Mutable data of shapes
+data Shape =
+     Shape { getX    :: Int
+           , getY    :: Int
+           }
+
+-- Constructor for shapes
+shape x y = Shape { getX = x
+                  , getY = y }
+
+-- Setters
+setX :: Subtype a Shape => Int -> a -> a
+setX i = (.!.) (\s -> s { getX = i} )
+
+setY :: Subtype a Shape => Int -> a -> a
+setY i = (.!.) (\s -> s { getY = i} )
+
+-- Move methods on shapes
+moveTo :: Subtype a Shape => Int -> Int -> a -> a
+moveTo x y = setY y . setX x 
+
+rMoveTo :: Subtype a Shape => Int -> Int -> a -> a
+rMoveTo deltax deltay a = moveTo x y a
+ where
+  x = getX .?. a + deltax
+  y = getY .?. a + deltay
+
+-- The abstract method for drawing shapes
+class Subtype a Shape => Draw a
+ where
+  draw :: a -> IO()
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The Circle class}
+
+\begin{code}
+-- An extension of Shape
+data Circle =
+     Circle { circle2shape :: Shape
+            , getRadius :: Int }
+
+-- Constructor
+circle x y r
+ = Circle { circle2shape = shape x y
+          , getRadius = r }
+
+-- Instantiate the subtyping relation
+instance Subtype Circle Shape
+ where
+  f .?. a = f $ circle2shape $ a
+  f .!. a = a { circle2shape = f $ circle2shape a }
+
+-- Setter
+setRadius :: Subtype a Circle => Int -> a -> a
+setRadius i = (.!.) (\s -> s { getRadius = i} )
+
+-- Implement abstract draw method
+instance Draw Circle
+ where
+  draw a =  putStrLn ("Drawing a Circle at:("
+         ++ (show (getX .?. a))
+         ++ ","
+         ++ (show (getY .?. a))
+         ++ "), radius "
+         ++ (show (getRadius .?. a)))
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The Rectangle class}
+
+Omitted. Very much like the Circle class.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{Scribble processing}
+
+Compared to the "type extension by polymorphic record tails" approach,
+the only difference is that we do not necessarily face Shape records
+but potentially also records that contain Shape records. The only
+place where this detail matters is in the definition of the
+existential envelope.
+
+\begin{code}
+-- Existential envelope for `drawables'
+data Drawable = forall a. Draw a
+  => Drawable a
+\end{code}

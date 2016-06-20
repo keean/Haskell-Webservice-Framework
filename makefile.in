@@ -1,0 +1,62 @@
+#HFLAGS=-O2 -fvia-C -optc-O2 -prof -auto-all
+HFLAGS=-O2 -fvia-C -optc-O2
+OBJS=Main.o
+SYSLIBS=-syslib net -syslib data
+INCLUDES=-i.
+SUBDIRS=Lib Server Modules
+SUBDIRS_PROF=Lib Server Modules ProfMain
+LD_PRELOAD=
+
+.SUFFIXES: .hi .hs .o .c
+
+%.o %.hi:%.hs
+	ghc -Wall -c $(HFLAGS) $< $(INCLUDES) $(SYSLIBS)
+
+all:subdirs hserver
+
+prof:subdirs-prof hserver-prof
+
+subdirs:
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir; \
+	done
+
+subdirs-prof:
+	@for dir in $(SUBDIRS_PROF); do \
+		$(MAKE) -C $$dir; \
+	done
+
+hserver: Lib/Monad/MonadControl.o Lib/Monad/MonadParser.o Lib/Linker/Linker.o Lib/Parser/Parser.o Lib/Server/Types.o \
+	Lib/HTML/Types.o Lib/XML/Types.o Lib/HTTP/Types.o Lib/Data/Version.o Main.o
+	ghc ${HFLAGS} -o hserver Lib/Monad/MonadT.o Lib/Monad/MonadState.o Lib/Monad/ParserT.o Lib/Monad/MonadControl.o \
+	Lib/Monad/MonadParser.o Lib/Linker/Linker.o Lib/Parser/Parser.o \
+	Lib/Server/Types.o Lib/HTML/Types.o Lib/XML/Types.o Lib/HTTP/Types.o \
+	Lib/XML/Dom.o Lib/XML/DomT.o Lib/XML/MonadDom.o Lib/Monad/MonadIO.o Lib/HTML/MonadHtml.o Lib/Data/Version.o\
+	Server/HServer.o Lib/HTTP/Figo.o Lib/HTML/HtmlFragmentT.o Lib/HTML/HtmlFragment.o \
+	Lib/HTTP/Parser.o Lib/HTTP/Server.o Lib/HTTP/Client.o Lib/XML/Parser.o \
+	Lib/HTML/DOM.o Lib/XML/Generator.o Lib/XML/Filter.o\
+	Lib/Arrow/Runnable.o Lib/HTTP/State.o Lib/HTTP/Templates.o Lib/HTTP/Demo.o \
+	Lib/Monad/StateT.o Lib/Monad/MonadSoln.o \
+	Main.o -syslib net -syslib template-haskell -ldl -lodbc -optl-u -optl Addr_Azh_con_info -lgcc_s -syslib hssource -syslib data
+
+hserver-prof: ProfMain/Main.o Lib/Linker/Linker.o Lib/Parser/Parser.o Lib/Server/Types.o \
+	Lib/HTML/Types.o Lib/HTML/Generator.o Lib/HTML/MenuBar.o Lib/XML/Types.o Lib/XML/DOM.o \
+	Lib/HTTP/Types.o Modules/Issues/App.o Server/HServer.o Lib/Server/Error.o Lib/DBC/HIODBC.o Lib/DBC/HSQL.o \
+	Lib/DBC/Query.o Lib/DBC/HIODBC_cbits.o Modules/Admin/App.o
+	ghc $(HFLAGS) -prof -auto-all -o hserver-prof ProfMain/Main.o Lib/Linker/Linker.o Lib/Parser/Parser.o \
+	Lib/Server/Types.o Lib/HTML/Types.o Lib/XML/Types.o Lib/HTTP/Types.o Modules/Issues/App.o Server/HServer.o \
+	Lib/HTML/Generator.o Lib/HTML/MenuBar.o Lib/XML/DOM.o Lib/Server/Error.o Lib/DBC/HIODBC.o Lib/DBC/HSQL.o \
+	Lib/DBC/Query.o Lib/DBC/hiodbc_c.o Modules/Admin/App.o -liodbc -syslib data -syslib net -ldl -liodbc
+
+makefiles:
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir makefiles; \
+	done
+	echo made
+
+clean:
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir clean; \
+	done
+	rm -f *.o *.hi hserver hserver-prof hserver-prof.hp hserver-prof.ps hserver-prof.prof
+

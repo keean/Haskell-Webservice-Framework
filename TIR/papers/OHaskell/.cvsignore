@@ -1,0 +1,10 @@
+paper.pdf
+*.bbl
+*.toc
+*.blg
+*.ps
+*.dvi
+*.zip
+*.aux
+*.log
+*.stackdump

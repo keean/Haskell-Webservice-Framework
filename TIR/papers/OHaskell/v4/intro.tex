@@ -1,0 +1,83 @@
+\section{Introduction}
+
+Is Haskell fit for OOP? This topic is raised time and again on
+functional programming mailing lists, on websites, and in verbal
+communication with remarkable regularity. There appear to be several
+reasons for such popularity:
+
+\smallskip
+
+\begin{itemize}
+
+\item In an \emph{intellectual} sense, we may wonder whether Haskell's
+advanced type system is expressive enough to model object types,
+inheritance, subtyping, virtual methods, etc. There is an established
+scientific pessimism regarding this question.
+
+\smallskip
+
+\item In a \emph{practical} sense, can we faithfully transport
+imperative OO designs from, say, C++, Java, C\#, VB to Haskell --
+without totally rewriting the design and without foreign-language
+interfacing?
+
+\smallskip
+
+\item From a \emph{language design} perspective, we know how to use
+Haskell for prototyping semantics and for encoding various abstraction
+mechanisms, but can we also leverage Haskell as a sandbox for design
+of typed object-oriented languages so that we can play with new ideas
+without the immediate need to write or modify a compiler.
+
+\smallskip
+
+\item In an \emph{educational} sense, is there anything important that
+more or less advanced functional and object-oriented programmers can
+learn about Haskell's type system and about OO by looking into the
+pros and cons of different OO encoding options?
+
+\end{itemize}
+
+\smallskip
+
+This paper delivers substantiated, positive answers to these
+questions. We describe OOHaskell~---~a Haskell-based library for (as
+of today: imperative) OO programming in Haskell. OOHaskell uncovers
+Haskell's overlooked object system. The key to this result is a good
+deal of exploitation of Haskell's breath-taking type system
+\emph{combined} with a careful identification of a suitable object
+encoding. OOHaskell builds upon our previous work on heterogeneous
+collections~\cite{HLIST-HW04} (the HList library), while we had to
+discover several new techniques to make non-trivial objects work.
+
+
+\medskip
+
+\subsection*{Road-map of this paper}
+
+\begin{itemize}
+\item Sec.~\ref{S:shapes}: We walk through an illustrative OO example.
+\item Sec.~\ref{S:rationale}: We give a detailed rationale for OOHaskell.
+\item Sec.~\ref{S:basics}: We describe basic OOHaskell programming idioms.
+\item Sec.~\ref{S:types}: We discuss typing issues~---~inference, errors, etc.
+\item Sec.~\ref{S:strengths}: We highlight some of the strengths of OOHaskell.
+\item Sec.~\ref{S:related}: We review related work.
+\item Sec.~\ref{S:concl}: The paper is concluded.
+\end{itemize}
+%
+There is an extended code distribution coming with this paper~\cite{OOHaskell}.
+
+\begin{comment}
+
+In Sec.~\ref{S:HList}, we briefly review the \HList\
+library~\cite{HLIST-HW04}, which provides extensible polymorphic
+heterogeneous records with first-class labels.  In
+Sec.~\ref{S:simple}, we introduce more basic OO notions such as
+objects and constructors. In Sec.~\ref{S:self}, we describe open
+recursion, which allows us to cover rich forms of inheritance.  In
+Sec.~\ref{S:shapes}, we handle a prototypical scenario for subtype
+polymorphism in detail. In~\ref{S:disc}, we very briefly discuss all
+remaining issues~---~including some technicalities, conclusions, and
+directions for future work.
+
+\end{comment}

@@ -1,0 +1,404 @@
+Outline of talk:
+
+[intend to follow order of paper - distribute draft as notes?]
+
+--------------------------------------------------------------------
+slide 1:
+--------------------------------------------------------------------
+
+Introduction: [tell them what you're going to tell them]
+
+	What is a strongly types hereogeneous collection,
+	and why would I want one?
+
+
+--------------------------------------------------------------------
+slide 2:
+--------------------------------------------------------------------
+
+	- Types of heterogeneous collections.
+
+	- Typeful heterogeneous lists.
+
+	- Ensuring HLists are well formed.
+
+	- Functions on HLists.
+
+	- Heterogeneous arrays.
+
+	- Type driven operations.
+
+	- Type proxies.
+
+	- Type indexed products.
+
+	- Subtype constraints.
+
+	- Extensible records.
+
+	- Database programming.
+
+	- hType2HNat revisited.
+
+	- Implementing HTypeEqBool.
+
+	- Summary
+
+--------------------------------------------------------------------
+slide 3:
+--------------------------------------------------------------------
+
+Types of Heterogeneous Collection:
+
+	- Strings (using read/show)
+		[no typeing at all]
+
+	- Sum types with labels
+		[run time typing]
+
+	- Dynamics
+		[same as sum type, but compiler generates
+		 a univeral sum type for you]
+
+	- What about static typing?
+
+--------------------------------------------------------------------
+slide 4:
+--------------------------------------------------------------------
+
+Typeful Heterogeneous Lists:
+
+	- Tuples (,,,,,) although heterogeneous cannot be indexed by
+	  integers...
+
+	- Using Peano naturals we could construct a class/function to
+	  access the Nth member, but the class would need one instance
+	  for every possible tuple.
+
+	- Solution: use a rescursive definition based on right-associative
+	  binary products (Key,(Name,(Breed,(Price,()))))
+
+	- However as we are ainterested in strong typing we will use:
+
+			data HNil = HNil
+			data HCons e l = HCons e l
+
+		resulting in lists like: HCons Key (HCons Name (HCons Breed (HCons Price HNil)))
+
+--------------------------------------------------------------------
+slide 5:
+--------------------------------------------------------------------
+
+Ensuring HLists are Well Formed:
+
+	- wellformedness: we are dealing with the class of all nested
+		right-associative binary products:
+
+			class HList l
+			instance HList HNil
+			instance HList l => HList (HCons e l)
+
+	- nice notation:
+
+			type MyHList = Key :*: Name :*: Breed :*: Price :*: HNil
+
+			myHList :: MyHList
+			myHList = 13 .*. "Flossy" .*. Cow .*. 55.97 .*. HNil
+
+		the '.*.' operator can be constrained:
+
+			(.*.) :: HList l => e -> l -> HCons e l
+
+--------------------------------------------------------------------
+slide 6:
+--------------------------------------------------------------------
+
+Functions on HLists:
+
+	- require choice based on type, function application only supports
+	  value based choice, so need type classes. As hHead and hTail 
+	  are not valid on HNil, they could even be defined as simple
+	  polymorphic functions:
+
+			hHead :: HCons e l -> e
+			hTail :: HCons e l -> l
+
+	[check that hHead / hTail need classes - can they just be polymorphic
+	finctions?]
+
+	- hLast and hInit the result type cannot be determined from the top
+	  HCons, an indefinite number need to be opened to get to the type,
+	  and this cannot be expressed as a polymorphic type:
+
+			hLast :: HCons e l -> ?
+
+		This requires choice on each recursion based on type, we end up with:
+
+			class HLast l e | l -> e where
+				hLast :: l -> e
+			instance HLast (HCons e HNil) e where
+				hLast (HCons e HNil) = e
+			instance HLast l e => HLast (HCons d l) e where
+				hLast (HCons _ l) = hLast l
+
+	- we can define most of the list operations we want using the above technique
+		(hHead,hTail,hInit,hLast,hAppend,etc...) 
+
+
+--------------------------------------------------------------------
+slide 7:
+--------------------------------------------------------------------
+
+Heterogeneous Arrays:
+
+	- Given numbers at the type level (Peano numbers) we can see how
+	  indexed access to an HList is possible.
+
+			data HZero
+			data HSucc n = HSucc n
+
+			class HLookup l i e | l i -> e where
+				hLookup :: l -> i -> e
+			instance HLookup (HCons e l) HZero e where
+				hLookup (HCons e _ ) _ = e
+			instance HLookup l n e => HLookup (HCons e' l) (HSucc n) e where
+				hLookup (HCons _ l) (HSucc n) = hLookup l n
+
+	- Supports various index base functions:
+
+			hLookup, hDelete, hUpdateTP, hUpdateTC, hProject, hSplit, hSize
+
+	- hProject and hSplit take a list of type level indexes, which because they
+		are typed require HLists to represent.
+
+--------------------------------------------------------------------
+slide 8:
+--------------------------------------------------------------------
+
+Type Driven Operations:
+	
+	- A heterogeneous collection contains elements of different types,
+	it seems useful to be able to perform operations on elements 
+	of a given type.
+
+	- hOccurs is group of functions/classes that extract values based
+	on type:
+
+		- hOccursMany - return all the occurances of type
+		- hOccursMany1 - return all (but at least one)
+		- hOccursOpt - return Just first occurance or Nothing
+		- hOccursFst - return first occurance of one or more
+		- hOccurs - establish there is exactly one occurance of type,
+				return value.
+
+	- hType2HNat is used to get the index of a type, this allows any
+	of the array-type operations to be used in a type driven way. There is
+	a small difficaulty in implementing hType2HNat, which we will return
+	to, but for now lets say that we can ineleganlty define it for all
+	Haskell platforms that support multi parameter type classes with
+	functional dependancies. We will also show several more elegant implementations
+	that rely on GHC's lazy approach to resolving overlapping instances.
+
+--------------------------------------------------------------------
+slide 9:
+--------------------------------------------------------------------
+
+Type Proxies:
+
+	- Type proxies make explicit that we are only concened with 
+	type information and not values.
+
+		data HProxy t = HProxy
+
+	- When using type diven operations like:
+
+		HDelete l (HProxy e) l'
+
+	The 'element' type is used to provide the index to the array
+	based positional element delete. 
+
+--------------------------------------------------------------------
+slide 10:
+--------------------------------------------------------------------
+
+Type Indexed Products:
+
+	- If we extend the idea of type indexing, we can require that each
+	element in the HList is uniquely identified by its type - this
+	is called a Type-indexed-product.
+
+	- We can use classes to constrain our types such that we are guaranteed
+	unique types.
+
+	- To avoid needing new function names (and classes) to deal with TIPs
+	we define a new type:
+
+		newtype TIP l = TIP { unTIP :: l }
+
+	- We can then add instances to our existing functions (hDelete, hLookup,
+	hOccurs etc...) for TIPs.
+
+	- another small concern is HCons, we need to lift this aswell - to
+	this end we define hExtend, which unwraps, applies HCons and rewraps
+	a TIP.
+
+	- We can also define type-indexed-coproducts (TICs) see paper.
+
+--------------------------------------------------------------------
+slide 11:
+--------------------------------------------------------------------
+
+Subtype Constraints:
+
+	- We can define a constraint which constraint one TIP to only
+	contain types present in a second TIP
+
+	- As both TIPs are already constrained to contain a type no 
+	more than once.
+
+	- order is irrelevant.
+
+	- this provides effective subtyping. 
+
+--------------------------------------------------------------------
+slide 12:
+--------------------------------------------------------------------
+
+Extensible Records:
+
+	- To allow unique record labels to be associated with freely 
+	typed values we pair two HLists together. One HList is constrained
+	to contain only unique typed (the keys) the other is an unconstrained
+	HList (the values).
+
+	- For record lookup we use type driven operations to find the key's position,
+	then array type access to get the value.
+
+	- heteogeneous records (with suitable additional definitions) look much like traditional
+	haskell records:
+
+		myUnpricedAnimal = Key .=. (42::Integer)
+			.*. Name .=. "Angus"
+			.*. Breed .=. Cow
+			.*. emptyRecord
+
+	- we can lift hLookup,hUpdate,hExtend,hAppend,hDelete to Records, giving us
+	record extension, as well as shrinking.
+
+	- Subtyping can be lifted to records as well. Here the subtype contains only
+	keys present in the supertype, and the values associated with such keys
+	are the same.
+
+--------------------------------------------------------------------
+slide 13:
+--------------------------------------------------------------------
+
+Database Programming:
+
+	- using the extensible records we have just defined, we can represent
+	a database schema, or the result of a query.
+
+	- We have operations to concatenate records, and to project a subset of
+	the elements into a new record.
+
+	- Using these properties we can define a 'Relation' to be a record of
+	attribute definitions with Haskell labels, plus some information
+	stored in a traditional haskell record (like source table, and
+	row related restrict information and project information.
+
+	- The Type information in the extensible record is effectively a
+	'wave-front' - type information for all but the current relation
+	is discarded, and we rely on the 'traditional' record to keep
+	track of earlier project information.
+
+	- sample query:
+
+		selectBreed :: Breed -> Query [
+			AnimalId :=: Maybe Int :*:
+			AnimalName :=: Maybe String :*:
+			HNil]
+		selectBreed b = do
+			r1 <- table animalTable
+			r2 <- restrict r1 (\r -> r!AnimalType `SQL.eq` toSqlType b)
+			r3 <- project r2 (AnimalId .*. AnimalName .*. HNil)
+			doSelect r3
+
+--------------------------------------------------------------------
+slide 14:
+--------------------------------------------------------------------
+
+hType2HNat Revisited:
+
+	- Earlier we mentioned that there were some trade-offs when
+	producing hType2HNat.
+
+	- Overlapping instances with fundeps occurs when we wish to
+	select an item by type:
+
+			instance X (HCons e l) e ...
+			instance X (HCons e' l) e ...
+
+	- If the RHS of the fundeps differ GHC will reject, if the
+	types overlap Hugs will reject.
+
+	- Effectively we can move all the problems into a single class
+	by rewriting:
+
+			instance (HTypeEqBool e e' b,Helper b e l e' l') => X (HCons e l) e' l'
+
+	- Overlapping instances avoided in helper because 'b' distingueshes
+	the instances.
+
+	- problem shifted to HTypeEqBool.
+
+--------------------------------------------------------------------
+slide 15:
+--------------------------------------------------------------------
+
+Implementing HTypeEqBool.
+
+	- can be implemented using fundeps such that all platforms
+	that support multi-parameter type classes and fundeps can support
+	it.
+
+	- To do this we map each type to a Peano number, then compare
+	Peano numbers. This ammounts to a user implementation of
+	the 'Typeable' class from Haskell Generics.
+
+	- We cannot use Generics though as 'typeOf' is evaluated
+	at runtime not compiletime.
+
+	- We can define a general implementation, but it requires
+	GHC's lazy instance selection, see appendix X in paper.
+
+	- We would like to suggest that where the class HTypeEqBool
+	cannot be defined easily, it should be provided as a primitive,
+	this will also require type level definitions of True and False.
+
+--------------------------------------------------------------------
+slide 16:
+--------------------------------------------------------------------
+
+Summary [tell them what you told them]:
+
+	- HLists are heterogeneous lists that allow lookup by
+	index or type.
+
+	- Type constraints can do useful things, TIPs, subtypes etc.
+
+	- There is a definition of extensible records that requires
+	no further extensions to the haskell standard (apart from
+	the HTypeEqBool issue)
+
+	- These records support a large set of operations, many more
+	variations on those given could be coded, some of which are
+	in the paper. Fairly easy to code new operations.
+
+	- Such records allow us to represent things like database
+	schema's and queries, as well as operate on them deriving
+	the result types.
+
+	- Such records offer interesing solutions to problems like
+	representing XML elements/documents in Haskell, and modelling
+	object systems. 
+

@@ -1,0 +1,84 @@
+\medskip
+ 
+\section{Concluding remarks}
+\label{S:concl}
+
+We have described an OO system for Haskell that supports stateful
+objects, inheritance and subtype polymorphism. We have demonstrated
+that our encoding is very close to the textbook OO code (usually given
+in C++ or Java tutorials), with pleasant deviations. The
+re-implementation of examples from the OCaml object tutorial
+demonstrated the faithfulness of our realization of objects. (We have
+opted for OCaml because it is a leading object system in a functional
+setting.) We have implemented parameterized classes, constructor
+methods, abstract classes, pure virtual methods, single and multiple
+inheritance with flexible rules of sharing or separation of
+superclasses. Some major byproducts are these: extensive type
+inference, first-class classes, implicit polymorphism of classes, an
+option of implicit coercion of objects to their most common supertype
+without any type annotations.
+
+We have clarified the relation between subtyping and type-class based
+polymorphisms: the latter can encode the former. We have implemented
+OOHaskell with the existing Haskell implementation (GHC), requiring no
+extra extensions beyond the commonly implemented ones: multi-parameter
+type classes with functional dependencies. It is quite pleasant that
+the existing OOHaskell code does not seem to be a burden to
+write~---~even in the absence of any syntactic sugar.
+
+We have implemented OO as a library feature -- based on the
+polymorphic records with introspection and subtyping provided by the
+\HList\ library.
+
+There are some further idioms that complement OOHaskell as a faithful
+OOP system, as substantiated by the paper's source distribution. For
+instance, we need to take measures to do instantiation checking for
+classes at declaration time. Otherwise some type errors would go
+unnoticed until the first attempt to program an instantiation. We can
+also model various forms of private and protected methods and other
+access modifiers. We can clone objects, we can let methods return
+`self', we can operate in the ST monad rather than the IO
+monad. OOHaskell allows for the implementation often desirable
+covariant methods~\cite{SG04,catcall} and static guarantees for their
+soundness. OOHaskell also supports some forms of depth
+subtyping~\cite{Poll97}. The extent and limitations of our handling of
+depth subtyping as well as co-/contra-variance schemes remains a
+subject for future work.
+
+\begin{comment}
+At present, error messages belie the
+complexity, and this is the topic of future research (and so it is for
+C++, where error messages in template meta-programs may span several
+hundred lines and be humanly incomprehensible).
+\end{comment}
+
+Further topics for future work are the following. Simple syntactic
+sugar would make OOP more convenient in Haskell, in particular, the
+inferred types can really benefit from prettier-printing.  Extra
+effort is needed to provide OOP-like error messages.  This is a
+sticking issue that requires major effort, but there is a line of
+research being carried out by Sulzmann and others~\cite{SSW04}.
+
+An interesting advanced topic is reflective programming. A simple form
+of reflection is readily provided in terms of the type-level encoding
+of records. One can iterate over records and their components in a
+generic fashion. Other forms of reflection, such as iteration over the
+object pool, as needed for dynamic aspect-oriented programming,
+requires further effort. Another challenge is to capture reusable
+solutions for design problems (as part of design patterns) in Haskell.
+
+An important issue is the efficiency of the encoding.  For example,
+although record extension is constant (run-)time, the field/method
+lookup is linear search. Clearly a more efficient encoding is
+possible: one representation of the labels in the \HList\ paper
+permits the total order among the labels types, which in turn, permits
+construction of efficient search trees. In this first OOHaskell paper,
+we chose the conceptual clarity over such optimizations.  A
+non-trivial case study is required to demonstrate the scalability of
+the approach. The mere compilation time of OOHaskell programs and
+their runtime efficiency is challenged by the huge dictionaries that
+are implied by our type-class-based approach. It is quite likely that,
+as one reviewer has observed, large-scale efficient
+\HList/OOHaskell style of programming will need dedicated compiler
+optimizations. ``But showing the usefulness of such an encoding is the
+first step towards encouraging compiler writers to do so!''

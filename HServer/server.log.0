@@ -1,0 +1,58 @@
+serverMain listening on: 8002
+accepting connections
+serverMain listening on: 8001
+accepting connections
+serverMain listening on: 8000
+accepting connections
+accepting connConnection from: "Eldritch.ee.ic.ac.uk":46083
+ections
+GET / HTTP/1.1
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: eldritch.ee.ic.ac.uk:8001
+Keep-Alive: 300
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+GET /favicon.ico HTTP/1.1
+Accept: image/png,*/*;q=0.5
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Accept-Encoding: gzip,deflate
+Accept-Language: en-us,en;q=0.5
+Connection: keep-alive
+Host: eldritch.ee.ic.ac.uk:8001
+Keep-Alive: 300
+User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.10) Gecko/20050803 Firefox/1.0.6
+
+accepting connectiConnection from: "Eldritch.ee.ic.ac.uk":38349
+start
+ons
+next
+start
+next
+start
+next
+start
+localHandler: no more requests
+Closing connection: "Eldritch.ee.ic.ac.uk":38349
+application finally
+finally: close done
+localHandler: no more requests
+Closing connection: "Eldritch.ee.ic.ac.uk":46083
+application finally
+finally: close done
+accepting connections
+Connection from: "Eldritch.ee.ic.ac.uk":37982
+next
+start
+next
+start
+next
+start
+next
+localHandler: no more requests
+Closing connection: "Eldritch.ee.ic.ac.uk":37982
+application finally
+finally: close done

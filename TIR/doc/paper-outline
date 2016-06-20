@@ -1,0 +1,41 @@
+a) Regarding labelling and indexing
+
+- lists that are indexed by value labels. (labels are strings or others)
+- lists that are indexed by type labels. (each label is a type)
+- lists without labels which are indexed by element types.
+- lists with/without labels which are indexed by different kinds of natural.
+- what else (and why:-)) ?
+
+b) Regarding structural invariants at the element-type level
+- multi-sets
+- sets
+- Oleg mentioned *relations* (in one enumeration with multi-sets and sets)
+somewhere: isn't that just about elements of product type structure?
+- Keean mentioned OrderedLists somewhere: but this was about value-level
+ordering, right?
+- What kind of invariants would we want to discuss? ... are relevant in
+the DB context?
+
+c)  Timing
+- All type-checking is done run-time.
+- All type-checking is done compile-time.
+- Mixed.
+- No type-checking code / computation ends up at run-time.
+- The type-checking code causes run-time penalties even for compile-time
+checking.
+
+d) Expressiveness
+- dynamics
+- intensional polym. (cast)
+- existential types
+- phantom types
+- dependent types (encodings)
+- functional dependencies
+- multi-parameter classes
+- overlapping instances maybe even undecidable instances
+
+So questions:
+- Are these sensible dimensions? (d) seems to be kind of different.)
+- Are there any other dimensions?
+- What further entries could be added as of today?
+

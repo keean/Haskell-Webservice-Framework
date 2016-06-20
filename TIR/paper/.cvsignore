@@ -1,0 +1,10 @@
+*.pdf
+*.bbl
+*.blg
+*.ps
+*.zip
+*.aux
+*.dvi
+*.log
+sigplan-proc.cls
+slides-dgp-2004

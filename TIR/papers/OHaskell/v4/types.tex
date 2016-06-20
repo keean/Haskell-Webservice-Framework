@@ -1,0 +1,485 @@
+\medskip
+
+\section{Discussion of typing issues}
+\label{S:types}
+
+We have played strong so far by leaving everything to type inference,
+by not writing down a single piece of type signature or type
+annotation (except perhaps for resolving unwanted polymorphism).
+Eventually, programmers want to look at inferred types, they might
+want to declare types, they certainly have to understand type
+errors. These are the issues that we will discuss first. Later, we will
+also compare some models of dealing with subtype polymorphism, which
+differ regarding the kind and amount of type information that has to
+be expressed by the programmer.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{Type inference}
+
+Readers of a previous version of the paper have wondered whether the
+inferred types would be perhaps incomprehensible. That is actually not
+the case (Likewise for error messages as reviewed later.)
+
+Let us infer the result of constructing a colored point:
+ 
+\begin{code}
+ ghci6.4> :t mfix $ colored_point (1::Int) "red"
+ mfix $ colored_point (1::Int) "red" ::
+        IO (Record 
+            (HCons (Proxy GetColor, IO String)
+             (HCons (Proxy VarX, IORef Int)
+              (HCons (Proxy GetX, IO Int)
+               (HCons (Proxy MoveX, Int -> IO ())
+                (HCons (Proxy Print, IO ())
+                 HNil))))))
+\end{code} 
+
+The type is pretty readable, even though it reveals the underlying
+representation of records (as a heterogeneous list of label-value
+pairs), and it also gives away the proxy-based model for labels.  It
+is reasonable to expect that a more customisable `pretty printer' for
+types could easily present the result of type inference as
+follows:
+
+\begin{code}
+ ghci6.6> :t mfix $ colored_point (1::Int) "red"
+ mfix $ colored_point (1::Int) "red" ::
+        IO ( Record (
+               GetColor :=: IO String
+           :*: VarX     :=: IORef Int
+           :*: GetX     :=: IO Int
+           :*: MoveX    :=: Int -> IO ()
+           :*: Print    :=: IO ()
+           :*: HNil ))
+\end{code} 
+
+In this object construction example, we had all polymorphism
+resolved. Also, the recursive knot was tied. Let's consider type
+inference for the case of more polymorphic expressions. In
+fact, here is the type of class @colored_point@:
+
+\begin{code}
+ ghc6.6> :t colored_point
+ ( Num a
+ , HasField GetX r (IO a1)
+ , Show a1
+ ) => a
+   -> String
+   -> r
+   -> IO ( Record (
+             GetColor :=: IO String
+         :*: VarX     :=: IORef a
+         :*: GetX     :=: IO a
+         :*: MoveX    :=: a -> IO ()
+         :*: Print    :=: IO ()
+         :*: EmptyRecord ))
+\end{code}
+
+That is, the type of the constructor essentially lists all the fields
+of an object, both new and inherited. Assumptions about @self@ are
+expressed as constraints on the type variable @r@. The constructor
+@colored_point@ refers to @getX@ (through @self@), and hence this
+reference implies a constraint of the form
+@HasField@~@GetX@~@r@~@(IO@~@a1)@. We note the polymorphism in the
+coordinate type for the point; cf.\ @a@ (and @a1@). Since arithmetic
+is performed on @GetX@, this implies bounded polymorphism: only @Num@
+types are permitted. Interestingly, type inference does not infer the
+fact that @a@ and @a1@ eventually must be the same. (@r@ with the
+@HasField GetX r (IO a1)@ constraint is part of the result record
+whose @GetX@ component is said to be of type @a@.)  This equality is
+not inferred because we have not (yet) taught the type system about
+the law that record extension preserves the type of previous
+components.
+
+We must admit that we have assumed a \emph{relatively} eager instance
+selection in the previous session. The hugs implementation of Haskell
+is (more than) eager enough. The recent versions of GHC have become
+more and more lazy. In a session with contemporary GHC (6.4) we would
+additionally see the following constraints, which deal with the
+uniqueness of label sets as they are encountered during record
+extension:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ HRLabelSet (HCons (Proxy MoveX, a -> IO ())
+            (HCons (Proxy Print, IO ()) HNil)),
+ \cmt{likewise for} MoveX, Print, GetX
+ \cmt{likewise for} MoveX, Print, GetX, VarX
+ \cmt{likewise for} MoveX, Print, GetX, VarX, GetColor
+\end{Verbatim}
+ 
+Inspection of the @HRLabelSet@ instances would reveal that these
+constraints are all satisfied, no matter how the type variable @a@ is
+instantiated. No ingenuity is required. A simple form of strictness
+analysis is sufficient. Alas, GHC is consistently lazy in resolving
+even such constraints. This is the issue we intend to bring to the GHC
+implementors.
+
+The type without the @HRLabelSet@ constraints looks very
+reasonable. The type explicitly lists all the fields and the types of
+their values. The type is actually quite readable. Because the type
+lists both the new fields and all inherited fields, the type could
+even be used for the simple implementation of a class browser in an
+IDE. (The class browser does not need to figure out the set of all
+methods in a class by itself: the compiler has already done that, and
+expressed in the type.)
+
+We must mention that the issue of the object types, as inferred vs. as
+they are actually shown to the user existed for OCaml, and it has been
+resolved as we hypothesised it could for GHC. Although objects types
+shown by OCaml are quite concise, that has not always been the
+case. In the {ML-ART} system, the predecessor of OCaml with no
+syntactic sugar~\cite{ML-ART} (Section 3):
+
+\begin{quote}\small
+``objects have anonymous, long, and often recursive
+types that describe all methods that the object can receive. Thus, we
+usually do not show the inferred types of programs in order to
+emphasize object and inheritance encoding rather than typechecking
+details. This is quite in a spirit of ML where type information is
+optional and is mainly used for documentation or in module
+interfaces. Except when trying top-level examples, or debugging, the
+user does not often wish to see the inferred types of his programs in
+a batch compiler.''
+\end{quote}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{Type errors}
+
+We now briefly illustrate type errors in OOHaskell programming.  To
+this end, we will experiment with virtual methods.
+
+In OCaml, one can declare a method without actually defining it, using
+the keyword @virtual@. A class containing virtual methods must be
+flagged @virtual@, and cannot be instantiated. Virtual methods will be
+implemented in subclasses. Virtual classes still define type
+abbreviations. Here is a virtual class:
+
+\begin{code}
+ class virtual abstract_point x_init =
+   object (self)
+     val mutable varX = x_init
+     method print = print_int self#getX
+     method virtual getX : int
+     method virtual moveX : int -> unit
+   end;;
+\end{code}
+
+\noindent
+In C++, one calls such methods \emph{pure} virtual methods and classes
+that cannot be instantiated are called abstract. In Java, we can flag
+classes as being abstract. In Haskell, we do not need any special
+constructs. A virtual method is simply not defined, and that's it:
+
+\begin{code}
+ abstract_point x_init self =
+   do
+      x <- newIORef x_init
+      returnIO $
+           varX   .=. x
+       .*. print  .=. (self # getX >>= Prelude.print )
+       .*. emptyRecord
+\end{code}
+%%% $
+
+\noindent
+This specific class cannot be instantiated with @mfix@ because @getX@
+is used but not defined. It is worth quoting an error message:
+
+\begin{code}
+ No instance for (HasField (Proxy GetX) HNil (IO a))
+   arising from use of `abstract_point' at ...
+ In the first argument of `mfix', namely `(abstract_point 7)'
+ In a 'do' expression: p' <- mfix (abstract_point 7)
+\end{code}
+
+The error message is concise and to the point. The error message
+succinctly list just the missing field. In general, the clarity of
+error messages is undoubtedly an area that needs more research, and
+such research is being done~\cite{SSW04}, which we or compiler writers
+may take advantage of. It must be mentioned that error messages in C++
+(template instantiation) can be immensely verbose, spanning literally
+30 and 40 packed lines. And yet boost and similar libraries that
+extensively use templates are gaining momentum.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{Explicit self constraints}
+
+The type-error discussion incidentally disclosed OOHaskell's ease with
+virtual methods. The Haskell type system effectively prevents us from
+instantiating classes which use methods neither they nor their parents
+have defined. There arises the question of the explicit designation of
+a method as pure virtual (even if it does not happen to be used in
+the class itself).
+
+We can simply constrain @self@. As a matter of discipline, we do not
+want to rewrite the earlier definition of the @abstract_point@ value.
+Instead, we add an \emph{inapplicable} equation whose only purpose
+is to impose a type constraint on the class:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ abstract_point (x_init::a) self 
+  | const False (constrain self ::
+                 Proxy (  (Proxy GetX, IO a)
+                      :*: (Proxy MoveX, a -> IO ())
+                      :*: HNil ))
+  = \undefined
+\end{Verbatim}
+
+\noindent
+(That is, we have written an equation with an always failing guard
+(cf.\ @const@~@False@) that nevertheless imposes typing constraints.
+The equation evaluates to \undefined, which is Ok because it will
+never be chosen anyhow.) The @constrain@ operation processes a record,
+i.e., @self@. An application of the operation must be
+annotated with a type for a list of label-component pairs.  The form
+|constrain| is quite akin to C++ \emph{concepts}
+\cite{siek05:_concepts_cpp0x}. Type-checking the application of
+@constrain@ implies checking whether the listed labels occur in the
+given record, and whether the components are of the required types.
+As we can see in the type annotation, we let @constrain@ return a type
+proxy. This makes it crystal-clear that no interesting computation is
+performed: type-checking is of only interest here. (Once again, modest
+syntactic sugar could make this idiom look less idiosyncratic, but we
+are keen to reveal the true technicalities.)
+
+One possible implementation of @constrain@ is to check whether we can
+\emph{narrow} the argument record to the result record
+type.  Of course, it is enough to attempt narrowing at the type level
+alone because we are not interested in a coerced value here. That is:
+
+\begin{code}
+ constrain :: Narrow r l => Record r -> Proxy l
+ constrain = const proxy
+\end{code}
+
+\noindent
+Narrowing is a type-driven projection operation on records, which
+lives in the \HList\ library. (We can also take co-/contra-variance
+for method types into account).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{Explicit typing and casting}
+
+There are situations when the explicit declaration of types can be
+necessary, when programming idioms like casting (aka narrowing,
+coercion) are to be applied. We look back to the shapes sample for a
+scenario. We recall the part of the OOHaskell program that placed
+different shapes in a normal, homogeneous Haskell list:
+
+\begin{code}
+ let scribble = lubCast (HCons s1 (HCons s2 HNil))
+\end{code}
+
+While this is our \emph{favourite} model of dealing with the
+combination subtyping polymorphism + collections, one can think of a
+less automatic approach. So rather than computing the least upper
+bound (whatever it happens to be), we could want to explicitly cast
+each single shape to a fixed upper bound type. OOHaskell offers this
+idiom as well:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ let scribble :: [Shape Int] -- Shape \cmt{to be defined}
+     scribble = [narrow s1, narrow s2]
+\end{Verbatim}
+
+An explicit coercion operation, @narrow@, now prepares each shape
+object for insertion into the homogeneous list. As an aside, such
+casting is \emph{implicit} in the C++ code from which we started --
+but must be \emph{explicit} in OCaml (where OOHaskell's favourable
+|lubCast| is not supported by its type system).
+
+Here is the record type for @Shape@ objects.
+
+\begin{code}
+ type Shape a = Record (  (Proxy GetX    , IO a)
+                      :*: (Proxy GetY    , IO a)
+                      :*: (Proxy SetX    , a -> IO ())
+                      :*: (Proxy SetY    , a -> IO ())
+                      :*: (Proxy MoveTo  , a -> a -> IO ())
+                      :*: (Proxy RMoveTo , a -> a -> IO ())
+                      :*: (Proxy Draw    , IO ())
+                      :*: HNil )
+\end{code}
+
+We note that we have included the virtual @draw@ operation because it
+is a part of the interface that is used in the loop over scribble.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{Trading heterogeneity for subtyping}
+
+So far we have shown two (more reasonable) ways to build a container
+over objects of different subtypes.  Nevertheless, it is very
+insightful to consider other techniques, be it just to see where they
+fall short.
+
+Rather than casting all elements of an emerging list to the
+\emph{same} record type, we may wonder whether these coercions can
+be avoided altogether.
+
+The first technique is to collect the shape objects, as is, in a
+\emph{heterogeneous} list rather than a homogeneous array or list. We
+cannot construct such a list with the normal, polymorphic list
+datatype constructor, but the \HList\ library comes again to our
+rescue. The scribble construction can now be performed without any
+narrowing:
+
+\begin{code}
+ let scribble = s1 `HCons` (s2 `HCons` HNil)
+\end{code}
+
+\noindent
+We cannot use ordinary list-processing function anymore, but the
+\HList\ library mimics the normal list-processing API for @HList@s. So
+there is also a heterogeneous variation on @mapM_@, namely @hMapM_@,
+to be invoked as follows:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ hMapM_ (\undefined::FunOnShape) scribble
+\end{Verbatim}
+
+\noindent
+The first argument of @hMapM_@ is not a function but rather a
+\emph{type code}. This is necessary for technical reasons related to
+the combination of rank-n polymorphism and ad-hoc
+polymorphism.\footnote{\small A heterogeneous map function can encounter
+entities of different types. Hence, its argument function must be
+polymorphic on its own (which is different from the normal map
+function). The argument function typically uses type classes (say,
+ad-hoc polymorphism) to process the entities of different types. The
+trouble is that the map function cannot possibly anticipate all the
+constraints required by its argument function.  The type-code
+technique moves the constraints from the type of the heterogeneous map
+function to the interpretation site of the type codes.} The meaning of
+each type code must be defined by a dedicated instance of an @Apply@
+class for function application. Here is the declaration of the type
+code @FunOnShape@ complete with its meaning:
+
+\begin{code}
+ data FunOnShape -- a type code only!
+\end{code}
+
+\begin{code}
+instance ( HasField (Proxy Draw) r (IO ())
+         , HasField (Proxy RMoveTo) r (Int -> Int -> IO ())
+         )
+      => Apply FunOnShape r (IO ())
+  where
+    apply _ x = do
+                   x # draw
+                   (x # rMoveTo) 100 100
+                   x # draw
+\end{code}
+
+\noindent
+The @Apply@ instance manifests encoding efforts that we did not face
+for the casting-based techniques. Now we have to list the
+\emph{method-access constraints} (for ``\#'', i.e., @HasField@) in the
+@Apply@ instance. Haskell's type-class system requires us to provide
+proper bounds for the instance.
+
+One might argue that the form of these constraints strongly resembles
+the method types listed in the class type @Shape@. So one might wonder
+whether we can somehow use the full class type in order to constrain
+the instance.  Haskell will not let us do that in any reasonable
+way. (Constraints are not first-class citizens in Haskell; we cannot
+compute them from types or type proxies~---~unless we were willing to
+rely on heavy encoding or advanced syntactic sugar.) So we are doomed
+to manually infer such method-access constraints for each such piece
+of polymorphic code.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\medskip
+
+\subsection{The use of existentials}
+\label{S:ex}
+
+The second (again suboptimal) technique for avoiding casts relies on
+placing shape objects in \emph{existentially quantified envelopes}: we
+do not coerce, but we wrap:
+
+\begin{code}
+ let scribble = [ WrapShape s1 , WrapShape s2 ]
+\end{code}
+
+\noindent
+The declaration of the @WrapShape@ type depends on the function that
+we want to apply to the opaque data. In our case, we can use the
+normal @mapM_@ function again; we only need to unwrap the @WrapShape@
+constructor prior to method invocations:
+
+\begin{code}
+ mapM_ ( \(WrapShape shape) -> do
+             shape # draw
+             (shape # rMoveTo) 100 100
+             shape # draw )
+         scribble
+\end{code}
+
+\noindent
+These operations have to be anticipated in the type bound for
+@WrapShape@:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+ data WrapShape =
+  \Forall x. ( HasField (Proxy Draw) x (IO ())
+       , HasField (Proxy RMoveTo) x (Int -> Int -> IO ())
+       ) => WrapShape x
+\end{Verbatim}
+
+\noindent
+It becomes evident that this result agrees with the heterogeneity
+technique in terms of encoding efforts. In both cases, we need to
+identify type-class constraints that correspond to the (potentially)
+polymorphic method invocations. This is a show stopper. So the use of
+explicit casting (@narrow@) or more implicit LUB construction
+(@lubCast@) is clearly to be preferred.

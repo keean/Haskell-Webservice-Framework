@@ -1,0 +1,15 @@
+"test1"
+HERBIVORE eats PLANT.
+HERBIVORE eats GRASS.
+HERBIVORE eats GRASS.
+"OK"
+"test2"
+HERBIVORE eats PLANT.
+COW eats GRASS.
+"OK"
+"test3"
+HERBIVORE eats GRASS.
+COW eats GRASS.
+COW
+HERBIVORE
+"OK"

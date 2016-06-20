@@ -1,0 +1,43 @@
+projects table:
+---------------
+project,
+name,
+created by,
+start_date,
+due_date,
+priority,
+assigned_to,
+status,
+description
+
+issues table:
+------------
+project
+created_by
+create_date
+priority
+num_comments
+
+comments table:
+--------------
+issue_id
+comment_by
+comment
+comment_date
+
+sub-project table:
+-----------------
+project_id
+name,
+time_required,
+depends_on [list of sub-projects]
+assigned to
+
+goalpost table:
+---------------
+project_id
+name
+date_due
+sub-projects-deliverable
+
+

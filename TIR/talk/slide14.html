@@ -1,0 +1,56 @@
+<HTML><HEAD><TITLE>Heterogeneous Collections Presentation</TITLE></HEAD>
+<BODY bgcolor="#336699" link="white" vlink="#cccccc" alink="orange">
+<TABLE height="100%" width="100%"><TR><TD align="left" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif">&lt; <A href="slide13.html">Prev</A></FONT>
+</TD><TD align="right" valign="top" height="1" width="50%">
+<FONT color="white" face="arial,helvetical,sans-serif"><A href="slide15.html">Next</A> &gt;</FONT>
+</TD></TR><TR><TD colspan="2" align="center" valign="middle" height="100%" width="100%">
+<FONT color="white" face="arial,helvetical,sans-serif"><CENTER>
+
+<!-- BEGIN SLIDE -->
+
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<CENTER>
+<H2>
+
+<!-- BEGIN TITLE -->
+
+Extensible Records ...
+
+<!-- END TITLE -->
+
+</H2>
+<P>
+<TABLE><TR><TD align="left" valign="top"><FONT color="white" face="arial,helvetical,sans-serif">
+<UL>
+
+<!-- BEGIN CONTENT -->
+<LI>To allow unique record labels to be associated with freely typed values
+we pair two HLists together. One HList is constrained to contain only unique types
+(the keys) the other is an unconstrained HList (the values).</LI>
+<BR />
+<LI>For record lookup we use type driven operations on the keys, producing an
+index which is used with array access to fetch the value.</LI>
+<BR />
+<LI>With suitable extra definitions, these extensible records can be made to look
+very much like normal Haskell records:
+<BLOCKQUOTE><CODE>
+myUnpricedAnimal = Key .=. (42::Integer)<BR />
+&nbsp;&nbsp;&nbsp;.*. Name .=. "Angus"<BR />
+&nbsp;&nbsp;&nbsp;.*. Breed .=. Cow<BR />
+&nbsp;&nbsp;&nbsp;.*. emptyRecord</CODE></BLOCKQUOTE>
+</LI>
+
+<!-- END CONTENT -->
+
+</UL>
+</TD></TR></TABLE>
+</P>
+<BR />
+<BR />
+</CENTER>
+</TD><TD>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TD></TR></TABLE>
+
+<!-- END SLIDE -->
+
+</CENTER></FONT></TD></TR></TABLE></BODY></HTML>

@@ -1,0 +1,13 @@
+(C) 2004, Oleg Kiselyov, Ralf Laemmel, Keean Schupke
+
+Code for the paper "Strongly typed heterogeneous collections"
+
+Disclaimer: prepared for use with GHC (tested with GHC version 6.2).
+We provide the code as shown in the paper for the reader's
+convenience. We plan to release the HList library as time permits.
+Our intention is to contribute the HList library to the Haskell
+libraries project. The code from the database section is not included
+because we are still working on the database access library and the
+underlying infrastructure.
+
+Last updated; June 24, 2004

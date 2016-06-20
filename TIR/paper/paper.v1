@@ -1,0 +1,2862 @@
+\documentclass[preprint]{sigplan-proc}
+\setlength{\parskip}{4pt}
+\setlength{\parsep}{3pt}
+
+% \usepackage{times}
+\usepackage{comment}
+\usepackage{code}
+\usepackage{url}
+\usepackage{graphics}
+\usepackage{boxedminipage}
+
+
+% Macros for notes to each other in the text
+\newcommand{\keean}[1]{{\it [Keean says: #1]}}
+\newcommand{\oleg}[1]{{\it [Oleg says: #1]}}
+\newcommand{\ralf}[1]{{\it [Ralf says: #1]}}
+
+% Formatting macros
+%\newcommand{\codesize}{\footnotesize}
+\newcommand{\HList}{\textsc{HList}}
+\newcommand{\noskip}{\topsep0pt \parskip0pt \partopsep0pt}
+\newcommand{\fm}{`foot-n-mouth'}
+\newcommand{\codesize}{\small}
+\newenvironment{mybox}{%
+\begin{boxedminipage}{\hsize}%
+\medskip
+}{%
+\medskip
+\end{boxedminipage}%
+\medskip
+}
+
+
+\begin{document}
+
+\title{Strongly typed heterogeneous collections}
+\subtitle{\today}
+\toappear{Draft. Submitted to the Haskell workshop 2004.\\
+The paper's web site: \url{http://www.cwi.nl/~ralf/HList/}\\
+The web site provides access to the Haskell sources in the paper.
+}
+
+\author{Oleg Kiselyov\\FNMOC, Monterey, CA
+%Fleet Numerical Meteorology and Oceanography Center, Monterey, CA
+\and
+Ralf L{\"a}mmel\\VU \& CWI, Amsterdam
+\and
+Keean Schupke\\Imperial College, London}
+
+\maketitle
+
+\begin{abstract}
+
+A heterogeneous collection is a datatype that is capable of storing
+data of different types. Such a datatype provides operations for
+look-up, update, iteration, and others. There are various kinds of
+heterogeneous collections, differing in representation, invariants,
+and access operations. We describe \HList~---~a Haskell-based library
+for strongly typed heterogeneous collections. We illustrate
+heterogeneous collections in the context of type-safe database access
+in Haskell. The development of \HList\ relies on some common
+extensions of Haskell~98, and it raises some interesting issues
+regarding Haskell's type system.
+
+\end{abstract}
+
+
+\category{E.2}{Data Storage Representations}{}
+\category{D.2.13}{Software Engineering}{Reusable Software}
+\category{D.3.1}{Programming Languages}{Formal Definitions and Theory}
+ 
+ 
+\terms{Design, Languages}
+ 
+\keywords{Collections, Extensible records, Haskell, Databases}
+
+
+
+\pagestyle{plain}
+
+% Switch on the 'at' sign 
+\makeatactive
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Introduction}
+ 
+Programmers in typed functional languages are used to homogeneous
+collections, where values of the same type are stored in lists, sets,
+queues, and others. There exist matured collection libraries, e.g.,
+the Edison library for Haskell~\cite{Edison}. Datatypes for
+homogeneous collections are \emph{programmable} by the virtue of
+parametric polymorphism. C++ programmers are also used to homogeneous
+collections (such as those in the Standard Template Library), which
+are programmable by the virtue of templates~---~a form of parametric
+polymorphism. Java programmers are about to receive support for
+parametric polymorphism, finally. This may end the use of weakly
+typed collections (``Everything is of type @Object@!''), which require
+run-time type casts with the potential of unappreciated exceptions.
+
+Unfortunately, the notion of typeful homogeneous collections fails to
+work for all the scenarios that require storing values of different
+types. Here is an open-ended list of typical examples that call for
+\emph{heterogeneous collections}:
+%
+\begin{itemize}
+%
+\item A symbol table that is supposed to store entries of different
+types is heterogeneous. It is a finite map, where the result type
+depends on the argument value.
+%
+\item An XML element is heterogeneously typed. In fact, XML elements
+are nested collections that are constrained by regular operators and
+the 1-ambiguity property.
+%
+\item Each row returned by an SQL query is a heterogeneous map from
+column names to cells. The result of a query is a homogeneous stream
+of heterogeneous rows.
+%
+\item Adding an advanced object system to a functional language
+requires heterogeneous collections of a kind that combine extensible
+records with subtyping and an enumeration interface.
+%
+\end{itemize}
+%
+Weakly typed encodings are relatively straightforward. For instance, a
+heterogeneously typed symbol table can be encoded using dynamic
+typing, or type-safe cast, or simply a universal type with cases for
+all entry types.
+
+The present paper introduces a strong typing discipline for
+heterogeneous collections. We will employ Haskell 98 with extensions
+as available in the GHC and Hugs implementations. Our development
+covers collection types such as extensible records, without
+introducing yet another language extension, which is an improvement
+over earlier proposals~\cite{GJ96,SM01,NTGS02,PJM03}. On the other
+hand, we end up using `sexy types' to this end: multi-parameter
+classes, overlapping instances, functional dependencies. In this
+sense, the present work provides an incentive to further mature these
+type notions.
+
+The paper is structured as follows. In Sec.~\ref{S:weak}, we will
+rehash more weakly typed techniques for dealing with heterogeneous
+collections. In Sec.~\ref{S:HList}, we will introduce \emph{typeful
+heterogeneous lists}, which provide the basis for the development to
+come. We will then work out different kinds of access operations and
+collections:
+%
+\begin{itemize}\noskip
+\item Sec.~\ref{S:HArray}~---~array-like access operations.
+\item Sec.~\ref{S:HTypeDriven}~---~type-driven access operations.
+\item Sec.~\ref{S:TIP}~---~type-indexed products.
+\item Sec.~\ref{S:records}~---~extensible records.
+\end{itemize}
+%
+In Sec.~\ref{S:db}, we will demonstrate the merits of heterogeneous
+collections in the context of type-safe database access in Haskell. In
+Sec.~\ref{S:chance}, we will review our take on Haskell's type
+system. In Sec.~\ref{S:related}, we will review related work, and the
+paper will be concluded in Sec.~\ref{S:concl}. There are several
+appendices with optional details.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Not so strongly typed collections}
+\label{S:weak}
+
+We assume database programming as the motivating scenario for most of
+the paper. Eventually we want to get to a point where complex SQL
+queries can be rephrased in Haskell in a typed and structured
+manner. As a beginner's example, let us attempt to encapsulate a
+simple SQL query in a Haskell function. The query should retrieve all
+animals (theirs keys and names) of a given breed from the \fm\
+database. A specific SQL query for sheep (rather than cows) looks as
+follows:
+
+\begin{code}
+ SELECT key,name FROM Animal WHERE breed = 'sheep';
+\end{code}
+
+\bigskip
+
+\subsection*{Cheap strings}
+
+The following Haskell code encodes the parameterised query:
+
+\begin{code}
+ selectBreed :: String -> SqlHandle SqlQueryResult 
+ selectBreed b =
+   sqlQuery (  "SELECT key,name FROM Animal "
+            ++ "WHERE breed ='" ++ b ++ "'")
+\end{code}
+
+Here we use a low-level ODBC binding for database access. The query is
+wrapped in an @SqlHandle@ type, which can be computed during an ODBC
+connection, which in turn is ran in the IO monad. The query function
+is parameterised in a @String@ for the breed parameter. The type of
+query results is defined as follows:
+
+\begin{code}
+ type SqlQueryResult = ([ColName],[Row])
+ type ColName        = String
+ type Row            = [Cell]
+ type Cell           = String
+\end{code}
+
+That is, the result of a query consists of a list of column names and
+a list of rows, where a row in turn is a list of cells. Both column
+names and cells are plain strings. This is painful code in the eye of
+an advanced functional programmer, but it is often a cheap way to make
+things work. For instance, the database interface
+\texttt{hardbms}~\cite{hardbms} is string-based just like that.
+
+\medskip
+
+\subsection*{Hand-made universes}
+
+If we wanted to maintain at least the primitive datatypes of cells,
+then we could go from strings to a universe of cell types:
+
+\begin{code}
+ data Cell = IntObject   Int
+           | FloatObject Float
+           | StringObject String
+           | ... -- and perhaps a few more cases
+\end{code}
+
+A row is still a list of such cells, but it is a heterogeneous list
+because of the various types of cells. Rather than defining such a
+universe of primitive datatypes, we can define a universe over the
+sorts of columns in a given data dictionary. Clearly, such a hand-made
+universe is subject to change whenever the data dictionary changes.
+
+
+These are types for the columns in the \fm\ database:
+
+\begin{code}
+ newtype Key   = Key Integer  deriving (Show,Eq,Ord)
+ newtype Name  = Name String  deriving (Show,Eq)
+ data Breed    = Cow | Sheep  deriving (Show,Eq)
+ newtype Price = Price Float  deriving (Show,Eq,Ord)
+ data Disease  = BSE | FM     deriving (Show,Eq)
+ ...
+\end{code}
+
+We derive @Show@, @Eq@, and @Ord@ instances to allow for printing of
+query results, and comparison of cells in @WHERE@ conditions. We
+redefine @Cell@ such that it is complete for the \fm\ database.
+
+\begin{code}
+ data Cell = KeyCell   Key 
+           | NameCell  Name
+           | BreedCell Breed
+           | ... -- and certainly more cases
+\end{code}
+
+\medskip
+
+\subsection*{The universal universe}
+
+Rather than defining a problem-specific universe of cell types, we can
+employ the Haskell library @Data.Dynamic@ with its type @Dynamic@. (We
+simply need to derive instances of the class @Typeable@ for all our
+cell types @Name@, @Breed@, \ldots.) This approach is perhaps not
+more typed, but at least it is more extensible. There is an equivalent
+alternative: we can use existentially quantified cell types together
+with a nominal, extensible, type-safe cast~\cite{LPJ03}.
+
+Going for the @Dynamic@s option, we get the following. Firstly, the
+encoding of column names in cell types allows us to leave them out in
+the type of query results. Secondly, a row ends up being a
+heterogeneous list of @Dynamic@s. That is:
+
+\begin{code}
+ type SqlQueryResult = [Row]
+ type Row            = HList
+ type HList          = [Dynamic]
+\end{code}
+
+Using @Data.Dynamic.toDyn@, which injects a @Typeable@ type into
+@Dynamic@, we construct an @HList@-typed value for the cow Angus:
+
+\begin{code}
+ myAnimal = [ toDyn (Key 42)
+            , toDyn (Name "Angus")
+            , toDyn Cow
+            , toDyn (Price 75.5) ] 
+\end{code}
+
+We can process such @HList@s with ordinary list-processing functions,
+e.g., @head@, @tail@, @null@, and @foldr@. We can also provide a
+type-driven operation to retrieve all elements of a given type. To
+this end, we use @Data.Dynamic.fromDynamic@, which wraps successfully
+extracted values in @Just@ and returns @Nothing@
+otherwise:\footnote{To avoid confusion, we prefix all heterogeneously
+typed functions, types, and classes with an ``h'' (or, an ``H'') such
+as in @hOccursMany@ and @HList@.}
+
+\begin{code}
+ hOccursMany :: Typeable a => HList -> [a]
+ hOccursMany = map fromJust    -- unwrap Just
+             . filter isJust   -- remove Nothing
+             . map fromDynamic -- get out of Dynamic
+\end{code}
+
+For instance, we can attempt to look up the breed of cow Angus:
+
+\begin{code}
+ ghci-or-hugs> hOccursMany myAnimal :: [Breed]
+ [Cow]
+\end{code}
+
+Note that printing @HList@s such as @myAnimal@ requires extra
+effort. A value of type @Dynamic@ is normally opaque. We would need to
+revise @toDyn@ to include a @Show@ constraint in addition to the
+@Typeable@ constraint. Alternatively, we could provide a @Show@
+instance for @Dynamic@, which attempts @fromDynamic@ towards all
+showable types that we can possibly think of~---~not a very extensible
+approach.
+
+\medskip
+
+\subsection*{Too few or too many types}
+
+Most programmers are likely to dislike operating on strings because it
+is completely untyped. A non-Haskell programmer might consider the
+level of typing in operating on universes as reasonable. The Haskell
+programmer will ask for much more typing. Most notably, when using
+type-driven look-up, there is no static guarantee that an element of
+the relevant type will be found at run-time.
+
+In database programming, this corresponds to the omission of static
+checks on column access in @WHERE@ phrases and elsewhere. Static
+checks would require a mapping of the data dictionary to Haskell
+types. That is, we could define one @newtype@ per table in the
+database. (This newtype bundles the columns as a product or a record.)
+Processing values of these various types could be accomplished with
+generic functions~\cite{LPJ03}. However, we are stuck: it is not
+enough to have precise types for database tables. We also would need
+precise types for queries and their intermediate expressions. So we
+are faced with an open-ended set of product or record types.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Typeful heterogeneous lists}
+\label{S:HList}
+
+We seek a notion of heterogeneous lists that is more typeful than
+@[Dynamic]@. Each list should have an associated precise type sequence
+(or product type). We will show that this added precision of typing
+does not negatively affect our ability to define list-processing
+functionality. To this end, we will work out a class @HList@ (rather
+than a type @HList@) whose extension is the set of all type sequences,
+i.e., the set of all nested, right-associative, binary products.
+
+\medskip
+
+\subsection*{Heterogeneous list constructors}
+
+We start by defining datatypes for lining up type sequences.
+
+\begin{code}
+ data HNil      = HNil       deriving (Eq,Show,Read)
+ data HCons e l = HCons e l  deriving (Eq,Show,Read)
+\end{code}
+
+For a more suggestive and unparenthesised notation, we assume
+right-associative infix operators ``\verb!:*:!'' at the type level and
+``\verb!.*.!'' at the value level:
+
+\begin{code}
+ type e :*: l = HCons e l
+\end{code}
+
+\begin{code}
+ e .*. l = HCons e l
+\end{code}
+
+Here is a type sequence for animals:
+
+\begin{code}
+ type Animal =
+   Key :*: Name :*: Breed :*: Price :*: HNil
+\end{code}
+
+Here is a heterogeneous list that represents cow Angus:
+
+\begin{code}
+ myAnimal :: Animal
+ myAnimal =  Key 42
+         .*. Name "Angus"
+         .*. Cow
+         .*. Price 75.5
+         .*. HNil
+\end{code}
+
+The type declaration is optional. The structural type of @myAnimal@
+would be correctly inferred without problems. Heterogeneous lists are
+nested tuples. So we could use the existing type constructors @()@ and
+@(,)@ instead of @HNil@ and @HCons@ as in:
+@(Key,(Name,(Breed,(Price,()))))@. We deliberately introduce new
+datatypes for building heterogeneous list. This helps avoiding
+confusion and clashes with ``normal'' applications of @()@ and
+@(,)@. We could also consider implicitly terminated type
+sequences. Again, we deliberately assume a terminating @HNil@ to avoid
+a mess.
+
+\medskip
+
+\subsection*{A class of heterogeneous lists}
+
+With the type constructor @HCons@ we can form more types than we
+want. We want @l@ in @HCons e l@ to be a heterogeneous list type
+again. To remedy this problem, we define a class @HList@ whose
+extension is the set of all reasonable types for heterogeneous
+lists. While the type @HList@ was previously a fixed type @[Dynamic]@,
+the class @HList@ is going to be a \emph{set} of types:
+
+\begin{code}
+ class HList l
+ instance HList HNil
+ instance HList l => HList (HCons e l)
+\end{code}
+
+What is the purpose of this class? Some readers might wonder whether
+we want to constrain the type constructor @HCons@ like that:
+
+\begin{code}
+ data HList l => HCons e l = HCons e l deriving ...
+\end{code}
+
+After due discussion we decided: NO, being in good
+company~\cite{SPJ04}. We rather place @HList@ constraints on
+list-processing functionality whenever we want them. For short: the
+problem with constraints on datatypes is that they only imply a proof
+obligation, but type inference does not propagate them nicely. This
+would lead to a proliferation of @HList@ constraints.
+
+For a user of the collection library, the unconstrained constructor
+@HCons@ is not visible, while we provide a public constructor that is
+accordingly constrained:
+
+\begin{code}
+ hCons :: HList l => e -> l -> HCons e l
+ hCons =  HCons
+\end{code}
+
+We also redefine the convenience notation for list construction:
+
+\begin{code}
+ (.*.) = hCons
+\end{code}
+
+\medskip
+
+\subsection*{List-processing operations}
+
+All kinds of list-processing operations can now be defined on @HList@.
+In particular, we can transpose operations such as @head@, @tail@, and
+@null@ to @HList@. Normally, each operation is subject to a dedicated
+class @HHead@, @HTail@, @HNull@, @HLength@, and so on; see
+App.~\ref{A:HList} for a few trivial examples. Let us consider the
+recursive function for concatenation in some detail. For comparison,
+we recall normal list concatenation:
+
+\begin{code}
+ append :: [a] -> [a] -> [a]
+ append [] l = l
+ append (x:l) l' = x : append l l'
+\end{code}
+
+We define a class @HAppend@ for concatenation of heterogeneous lists:
+
+\begin{code}
+ class HAppend l l' l'' | l l' -> l''
+  where
+   hAppend :: l -> l' -> l''
+\end{code}
+
+In fact, this is a multi-parameter class that also relies on the
+Haskell extension for functional dependencies. Note that ``normal''
+collection libraries triggered the introduction of multi-parameter
+classes with functional dependencies. So it is perhaps not surprising
+that we end up using them for heterogeneous collections. The
+functional dependency \verb!l l' -> l''!  expresses that the class
+@HAppend@ is a type-level function~---~rather than a mere relation on
+types.
+
+The instances follow the definition of @append@ very closely:
+
+\begin{code}
+ instance HList l => HAppend HNil l l
+  where
+   hAppend HNil l = l
+\end{code}
+
+\begin{code}
+ instance HAppend l l' l''
+       => HAppend (HCons x l) l' (HCons x l'')
+  where
+   hAppend (HCons x l) l' = HCons x (hAppend l l')
+\end{code}
+
+Equation-level programming (cf.\ \texttt{append}) is more concise than
+instance-level programming (cf.\ \texttt{hAppend}). Notice: @append@'s
+equational term patterns have to be repeated at both the level of
+heads and method definitions in instances. Also, the instance
+constraints are like explicit type signatures. But otherwise we can
+transpose list processing to the heterogeneous case in a systematic
+manner. There is just a constant factor of noise.
+
+Rather than defining all kinds of specific list-processing functions,
+one might wonder if the general recursion schemes for list processing
+can also be defined. This would require the definition of higher-order
+heterogeneously typed functions.  In fact, App.~\ref{A:HFoldr}
+transposes the normal @foldr@ operator to the heterogeneous situation.
+
+\medskip
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{figure*}[t!]
+\begin{mybox}
+\begin{verbatim}
+  class HLookup    l i e        |  l i -> e        where  hLookup     ::  l -> i -> e
+  class HDelete    l i l'       |  l i -> l'       where  hDelete     ::  l -> i -> l'
+  class HUpdateTP  l i e        |  l i -> e        where  hUpdateTP   ::  l -> i -> e -> l 
+  class HUpdateTC  l i e l'     |  l i e -> l'     where  hUpdateTC   ::  l -> i -> e -> l'
+  class HProject   l il l'      |  l il -> l'      where  hProject    ::  l -> il -> l'
+  class HSplit     l il l' l''  |  l il -> l' l''  where  hSplit      ::  l -> il -> (l', l'')
+\end{verbatim}
+\end{mybox}
+\caption{Index-based access to heterogeneous collections}
+\label{F:HArray}
+\end{figure*}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Stanamic lists}
+
+The class @HList@, and all the classes with list-processing operations
+(e.g., the shown @HAppend@) are in no way restricted to lists built
+from @HNil@ and @HCons@. We can easily add instances for @HList@,
+@HAppend@, and others such that we also deal with less typeful
+heterogeneous lists (e.g., @[Dynamic]@), or with less generic
+heterogeneous lists (such as hand-made universes). This allows us to
+use our collection framework even in cases when the precise type
+sequence for a collection is not known statically, e.g., when
+collections are built from user input. One can even mix statically and
+dynamically typed collections. An advanced example of such a
+``stanamically'' constrained data structure are the balanced trees
+in~\cite{Oleg03}. For the rest of the paper we will focus on
+statically typed heterogeneous lists.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Heterogeneous arrays}
+\label{S:HArray}
+
+We will now define array-like access operations for @HList@s; see
+Fig.~\ref{F:HArray} for the API. We access elements using naturals for
+indexing. We slightly go beyond what is normally considered an array
+operation. That is, deletion of subscripted entries and projection are
+also covered. In a way, we also use this section to recall some
+required techniques of faked dependently typed
+programming~\cite{Fake,Hallgren01}.
+
+\medskip
+
+\subsection*{Type-level naturals} 
+
+We use naturals as indexes for array access. In fact, we do not use
+normal value-level naturals for subscripting, but we employ type-level
+naturals. That is, we use datatype constructors @HZero@ and @HSucc@
+to enumerate naturals at the type level:\footnote{We also prefix all
+faked dependently typed types and functions with an ``H'' (or, an
+``h'') such as in @HNat@ and @hNat2Integral@. These types are also
+heterogeneous in a sense: we define many types to discriminate
+values of a normal type at the type level.}
+
+\begin{code}
+ data HZero   = HZero
+ data HSucc n = HSucc n
+\end{code}
+
+Well-formed naturals are defined by a class @HNat@:
+
+\begin{code}
+ class HNat n
+ instance HNat HZero
+ instance HNat n => HNat (HSucc n)
+\end{code}
+
+Eventually, one could want to perform all kinds of operations on
+type-level naturals: arithmetic operations, comparisons, etc., but we
+omit such elaborations here.
+
+\medskip
+
+\subsection*{Index-based look-up}
+
+Given a heterogeneous list and a natural, we can look up the
+corresponding element from the list. Out-of-range problems are flagged
+statically. The look-up operation gives rise to a dedicated class:
+
+\begin{code}
+ class HLookup l i e | l i -> e
+  where
+   hLookup :: l -> i -> e
+\end{code}
+
+Should @HList@ be a superclass of @HLookup@? NO: if we did that, we
+could no longer instantiate @HLookup@ for type constructors other than
+those that build @HList@s. But @HLookup@ and similar operations are
+useful for other sorts of collections. We are therefore careful not to
+fix superclasses. We consider @HLookup@ as a sort of mixin.
+
+The first element in a list is addressed by @HZero@:
+
+\begin{code}
+ instance HLookup (HCons e l) HZero e
+   where  hLookup (HCons e _) _ = e
+\end{code}
+
+A non-zero natural requires recursion into list and index:
+
+\begin{code}
+ instance HLookup l n e'
+       => HLookup (HCons e l) (HSucc n) e'
+   where  hLookup (HCons _ l) (HSucc n) = hLookup l n
+\end{code}
+
+\medskip
+
+\subsection*{Index-based delete and update}
+
+There are two options for updating; see the classes @HUpdateTP@ and
+@HUpdateTC@ in Fig.~\ref{F:HArray}. The type-preserving option
+(``TP'') is that we replace the indexed value by a value of the same
+type. Otherwise, we are faced with the (potentially) type-changing
+option (``TC'').
+
+We consider the instances of the @HUpdateTP@ class.
+
+For the zero index we update the head of the heterogeneous list:
+
+\begin{code}
+ instance HUpdateTP (HCons e l) HZero e
+   where  hUpdateTP (HCons e l) _ e' = HCons e' l
+\end{code}
+
+For a non-zero index, we keep the head and recurse:
+
+\begin{code}
+ instance HUpdateTP l n e'
+       => HUpdateTP (HCons e l) (HSucc n) e'
+  where
+   hUpdateTP (HCons e l) (HSucc n) e'
+            = HCons e (hUpdateTP l n e')
+\end{code}
+
+The classes @HUpdateTC@ and @HDelete@ are defined alike.
+
+\medskip
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{figure*}[t!]
+\begin{mybox}
+
+Type-driven look-up operations
+
+\smallskip
+
+{\small
+\begin{verbatim}
+  class HOccursMany  e l   where  hOccursMany   ::  l -> [e]       -- return as mny occurrences of as there are
+  class HOccursMany1 e l   where  hOccursMany1  ::  l -> (e,[e])   -- return at least one occurrence but all again
+  class HOccursOpt   e l   where  hOccursOpt    ::  l -> Maybe e   -- return the first occurrence if any
+  class HOccursFst   e l   where  hOccursFst    ::  l -> e         -- return the first occurrence out of one ore more
+  class HOccurs      e l   where  hOccurs       ::  l -> e         -- establish that there is precisely one occurrence
+\end{verbatim}
+}
+
+\medskip
+
+Define @HProxy@-based indexing in terms of @HNat@-based indexing
+
+\smallskip
+
+{\small
+\begin{verbatim}
+  instance  ...  =>  HLookup   l (HProxy e) e      where  hLookup   l p   = hLookup l   (hType2HNat l p)
+  instance  ...  =>  HDelete   l (HProxy e) l'     where  hDelete   l p   = hDelete l   (hType2HNat l p)
+  instance  ...  =>  HUpdateTP l (HProxy e) e      where  hUpdateTP l p e = hUpdateTP l (hType2HNat l p) e 
+  instance  ...  =>  HUpdateTC l (HProxy e) e l'   where  hUpdateTC l p e = hUpdateTC l (hType2HNat l p) e 
+\end{verbatim}
+}
+
+\medskip
+
+Simplified type-indexed update
+\smallskip
+
+{\small
+
+\begin{verbatim}
+ class HUpdate l e                                instance HUpdateTP (HCons e' l) (HProxy e) e => HUpdate (HCons e' l) e
+   where hUpdate :: l -> e -> l                     where hUpdate l e = hUpdateTP l (hProxy e) e
+\end{verbatim}
+
+}
+
+\end{mybox}
+\caption{Type-driven access to heterogeneous collections}
+\label{F:HTypeDriven}
+\end{figure*}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Index-based projection}
+
+Projection according to a list of indexes can be defined in different,
+principled ways. A basic approach is to fold over the list of indexes,
+to perform look-up per index, and to append together the retrieved
+list elements in just that order. Note that lists of indexes (i.e.,
+lists of type-level naturals) are actually heterogeneous lists
+themselves.
+
+Here is the instance for an empty list of indexes:
+
+\begin{code}
+ instance HProject l HNil HNil
+   where  hProject _ _  = HNil
+\end{code}
+
+For a non-empty list of indexes, we perform look-up for the head index
+and projection for the tail of the list of indexes. The two
+intermediate results are composed with @HCons@ as the final result:
+
+\begin{code}
+ instance ( HLookup (HCons e l) i e'
+          , HProject (HCons e l) il l'
+ ) => HProject (HCons e l) (HCons i il) (HCons e' l')
+ where
+  hProject l (HCons i il) = HCons e' l'
+   where e' = hLookup l i
+         l' = hProject l il
+\end{code}
+
+In Fig.~\ref{F:HArray}, we also list another kind of projection,
+namely `splitting', where we ask for a pair of results: the list
+selected by the indexes vs.\ the remaining list. To this end, we
+perform deletion instead of look-up. @HSplit@ cannot deal with
+duplication of elements, while @HProject@ can. One can reconstruct
+@HSplit@ as double invocation of @HProject@. To this end, we would
+need to compute the complement of an index list at the type level,
+which can be accomplished again as a faked dependently typed function.
+
+\medskip
+
+\subsection*{Statically enforced invariants}
+
+Here is `constraining-only' class, i.e., a class without methods.  The
+class constrains the maximum length of a list (or an array) at hand:
+
+\begin{code}
+ class HMaxLength l n
+ instance ( HNat n, HLength l n', HOrd n' n HLt )
+       =>   HMaxLength l n 
+\end{code}
+
+By adding constraints of the form @HMaxLength l HNat42@ to function
+signatures or to instances, one can enforce size boundaries. In the
+above instance, we employ a type-level version of ordering on
+naturals; see the constraints @HOrd ...@. That is, we lift the
+value-level concept of @Ordering@ (with value-level constants @Lt@,
+@Eq@, and @Gt@) to the type level. Again, this is straightforward
+faked dependently typed programming.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Type-driven operations}
+\label{S:HTypeDriven}
+
+Naturals provide a kind of positional access mode (as opposed to
+``keyword'' arguments). Especially because heterogeneous collections
+contain elements of different types, we also want to perform
+type-driven access. For instance, in database programming, we can use
+column types for accessing collections. The present section will
+introduce a type-driven layer for operating on @HList@s.
+
+\medskip
+
+\subsection*{Type-driven look-up}
+
+For @[Dynamic]@, we gave a type-driven look-up operation
+@hOccursMany@, which delivered all elements of a given type. The
+requested type was only specified by means of the result type of
+@hOccursMany@. It is not too hard to define operations like
+@hOccursMany@ on @HList@, as we will show now. We can define even more
+strongly typed operations, as we will show in a second.
+
+We dedicate a class to @hOccursMany@:
+
+\begin{code}
+ class  HOccursMany e l
+  where hOccursMany :: l -> [e]
+\end{code}
+
+The instance for @HNil@ returns @[]@:
+
+\begin{code}
+ instance HOccursMany e HNil
+  where   hOccursMany _ = []
+\end{code}
+
+The next instance deals with a non-empty heterogeneous list whose head
+is of the type of interest; notice the two occurrences of @e@ in the
+instance head:
+
+\begin{code}
+ instance HOccursMany e l
+       => HOccursMany e (HCons e l)
+   where  hOccursMany (HCons e l) = e : hOccursMany l
+\end{code}
+
+We need another instance for a non-empty heterogeneous list, namely
+one instance whose head is \emph{not} of the same type as the element
+type in @hOccurs@'s result type:
+
+\begin{code}
+ instance HOccursMany e l
+       => HOccursMany e (HCons e' l)
+   where  hOccursMany (HCons _ l) = hOccursMany l
+\end{code}
+
+Here, we rely on ``allowing overlapping instances'' as supported by
+the GHC and Hugs implementations of Haskell. (But we will later see
+that overlapping can be circumvented if we work a little bit harder.)
+The @HOccursMany e (HCons e l)@ instance is more specific than the
+@HOccursMany e (HCons e' l)@ instance. So the latter will only be
+applied whenever the former is not applicable, i.e., whenever the
+types @e@ and @e'@ are different.
+
+\medskip
+
+\subsection*{Unambiguous type-driven look-up}
+
+In a sense, @hOccursMany@ is the regular ``$*$'' operator for
+type-driven look-up. In Fig.~\ref{F:HTypeDriven}, we list the types of
+other look-up operators for @hOccursMany1@ (i.e., ``$+$''),
+@hOccursOpt@ (i.e., ``?''), and @hOccursFst@ (which returns the first
+occurrence). These operators can be defined using the same
+``overlapping instance'' approach as it was shown before for
+@hOccursMany@. There are no surprises.\footnote{\emph{Exercise}: Define
+@hOccursMany1@, @hOccursOpt@, @hOccursFst@ without @HList@-traversing
+instances. Rather define them by constraining applications of
+@hOccursMany@.}
+
+The operator @hOccurs@ requires some thought. This operator is meant
+to statically establish that the provided element type
+\emph{unambiguously} refers to one element in the given list. For
+instance, merely type checking @hOccurs myAnimal :: Breed@ should
+imply that @myAnimal@'s breed is defined unambiguously. There is
+clearly no @HOccurs@ instance for the empty heterogeneous list. There
+are again two overlapping instances for non-empty lists; one for the
+case that the head fits with the type of interest, and another for
+recursion:
+
+\begin{code}
+ instance HFreeType e l => HOccurs e (HCons e l)
+   where  hOccurs (HCons e _) = e
+\end{code}
+
+\begin{code}
+ instance HOccurs e l => HOccurs e (HCons e' l)
+   where  hOccurs (HCons _ l) = hOccurs l
+\end{code}
+
+The first instance is constrained by @HFreeType e l@. Thereby, we
+establish that no elements of type @e@ occur in the tail @l@. The
+class @HFreeType@ is for ``constraining only', i.e., there are no
+methods:
+
+\begin{code}
+ class HFreeType e l
+ instance HFreeType e HNil
+ instance (TypeNotEq e e', HFreeType e l)
+       =>  HFreeType e (HCons e' l)
+\end{code}
+
+The instances fold over the type sequence @l@ to test that each type
+is different from @e@. We employ a class @TypeNotEq@ whose extension
+is the set of all pairs of non-equivalent types. We will define this
+class in Sec.~\ref{S:chance}.
+
+\medskip
+
+\subsection*{Proxy-based access}
+
+The middle block in Fig.~\ref{F:HTypeDriven} provides instances for
+the array-like access operations. To this end, we take `type proxies'
+as indexes, and we translate them to naturals with an operation
+@hType2HNat@.  Projection (including projection by splitting) lifts
+automatically because these operations simply iterate over index lists
+without strong opinions about the kinds of indexes involved.
+
+Type proxies are values of the following type:
+
+\begin{code}
+ data HProxy e = HProxy
+\end{code}
+The type variable @e@ appears only on the left-hand side of the
+declaration, and so @HProxy@ is a phantom type. A type proxy is meant
+for nothing but transporting type information. By using a type @HProxy e@
+instead of @e@ in the instance heads for @HLookup@, @HDelete@,
+etc.\ in Fig.~\ref{F:HTypeDriven}, we point out that we do not require
+an actual value of type @e@, but only a type proxy for indexing. We
+can be forgetful, i.e., we can turn a value of a certain type into a
+type proxy of that type:
+
+\begin{code}
+ hProxy :: e -> HProxy e
+ hProxy _ = HProxy -- turn a value into a proxy
+\end{code}
+
+The following session transcript illustrates proxy-based access. The
+application of @hDelete@ involves a proxy for the breed of @myAnimal@:
+
+\begin{code}
+ ghci-or-hugs> hDelete myAnimal (HProxy::HProxy Breed)
+ HCons (Key 42)
+       (HCons (Name "Angus")
+              (HCons (Price 75.5) HNil))
+\end{code}
+
+We still owe an explanation of the type-to-natural mapping for an
+@HList@ at hand, which allows us to reuse functionality for
+natural-based indexing in the type-driven context. There is a
+corresponding class:
+
+\begin{code}
+class HType2HNat l e n | l e -> n
+ where
+  hType2HNat :: l -> HProxy e -> n
+\end{code}
+
+For brevity, we explain the required instances informally. The
+expression \texttt{hType2HNat~l~p} evaluates as follows. If @l@ is the
+empty list, then the mapping fails. If the type proxied by @p@ and the
+type of @hHead l@ are equivalent, then the result is
+@HZero@. Otherwise, the result is @HSucc (hType2HNat (hTail l) p)@.
+
+The actual Haskell encoding of these informal rules can be found in
+App.~\ref{A:HType2HNat}. As in the case of @HOccurs@, a crucial issue
+is here the observability of type equality (or type inequality), which
+we will discuss separately in Sec.~\ref{S:chance}. Users of the
+collection library do not need to be concerned with such cunning
+details.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Type-indexed products}
+\label{S:TIP}
+
+In the previous section, we have considered type-indexed access. One
+can even require that a given collection is entirely type-indexed,
+i.e., that \emph{no} type occurs more than once. These are so-called
+type-indexed products (TIPs; \cite{SM01}). One can also dualise TIPs,
+which leads to type-indexed co-products (TICs; see App.~\ref{A:TIC}).
+
+\medskip
+
+\subsection*{Type-indexed products}
+
+We wrap TIPs in a newtype so that we make the status of being
+type-indexed explicit in type signatures. Also, we can provide special
+instances for TIPs once we made this type distinction:
+
+\begin{code}
+ newtype TIP l  = TIP l -- to be constrained
+ unTIP  (TIP l) = l
+\end{code}
+
+The public constructor for TIPs supplies the key constraint for TIPs:
+
+\begin{code}
+ mkTIP :: HTypeIndexed l => l -> TIP l
+ mkTIP = TIP
+\end{code}
+
+The class @HTypeIndexed@ is again for ``constraining only''. The
+instances traverse over a list, and the class @HFreeType@ is used to
+ensure that the type of the head does not occur (again) in the tail:
+
+\begin{code}
+ class HTypeIndexed l
+ instance HTypeIndexed HNil
+ instance (HFreeType e l, HTypeIndexed l)
+       =>  HTypeIndexed (HCons e l)
+\end{code}
+
+Let us upgrade @myAnimal@ to a TIP:
+
+\begin{code}
+ ghci-or-hugs> let myTipyCow = TIP myAnimal
+\end{code}
+
+\medskip
+
+\subsection*{Lifted operations}
+
+We can now lift all previous operations @hAppend@, @hLookup@,
+@hDelete@, @hUpdate@, @hProject@, @hSplit@, @hOccurs@, ...  to
+TIPs. Lifting requires unwrapping ``@TIP@'' in arguments, wrapping
+``@TIP@'' in the result (if this is a TIP), and constraining instances
+so that the @HTypeIndexed@ property is enforced. For instance:
+
+\begin{code}
+ instance (HAppend l l' l'', HTypeIndexed l'') 
+       =>  HAppend (TIP l) (TIP l') (TIP l'')
+ where
+  hAppend (TIP l) (TIP l') = mkTIP (hAppend l l')
+\end{code}
+
+\medskip
+
+\subsection*{TIP extension}
+
+Adding an element to a heterogeneous list is accomplished with
+@hCons@~---~the public and constrained variation on @HCons@. For TIPs,
+we would like to make sure that adding an element with @HCons@ is
+further constrained: the @HTypeIndexed@ property must be preserved. We
+call this operation @hExtend@ for extension. We redirect ``@.*.@'' to
+an overloaded @hExtend@.
+
+\begin{code}
+ (.*.) = hExtend
+\end{code}
+
+\begin{code}
+ class HExtend e l l' | e l -> l'
+  where hExtend :: e -> l -> l'
+\end{code}
+
+The instances for lists equate @hExtend@ and @hCons@ (omitted).\\
+The instance for TIPs is then the following:
+
+\begin{code}
+ instance HTypeIndexed (HCons e l)
+       => HExtend e (TIP l) (TIP (HCons e l))
+   where  hExtend e (TIP l) = mkTIP (HCons e l)
+\end{code}
+
+To illustrate extension, we label @myTipyCow@ with BSE:
+
+\begin{code}
+ ghci-or-hugs> BSE .*. myTipyCow
+ TIP (HCons BSE ...)
+\end{code}
+
+The animal @myTipyCow@ is a cow; so it can't be a sheep then:
+
+\begin{code}
+ ghci-or-hugs> Sheep .*. myTipyCow
+ Type error ...
+\end{code}
+
+\medskip
+
+\subsection*{Subtype constraints}
+
+Functionality on collections carries \emph{implied} constraints due to
+all the involved access operations.  In addition, one might want to
+add \emph{explicit} type constraints.  The earlier @HMaxLength@
+constraint is of that kind. A prototypical, TIP-related example is a
+subtype constraint.
+
+For instance, let us deploy a constrained @hOccurs@ that is meant to
+return the @Key@ of an animalish TIP. If a given TIP is not a subtype
+of @TIP Animal@, then it must be rejected~---~even if it happens to
+carry a @Key@. This is how we define such a constrained function:
+
+\begin{code}
+ animalKey :: ( HOccurs Key l           -- implied
+              , HSubType l (TIP Animal) -- explicit
+              ) => l -> Key
+ animalKey = hOccurs
+\end{code}
+
+Here is how the subtype constraint takes action:
+
+\begin{code}
+ ghci-or-hugs> animalKey myTipyCow
+ Key 42
+ ghci-or-hugs> animalKey (TIP (HCons (Key 42) HNil))
+ Type error! 
+\end{code}
+
+The class @HSubType@ is specified as follows:
+
+\begin{code}
+ class HSubType l l'
+ instance HSubType (TIP l) (TIP HNil)
+ instance (HBoundType e l, HSubType (TIP l) (TIP l'))
+       =>  HSubType (TIP l) (TIP (HCons e l'))
+\end{code}
+
+The instances establish that all element types of the second TIP are
+also present (or bound) in the first TIP. It is also clear that we do
+not care about the order of elements in the type-indexed products. So
+we really end up with a faithful form of subtyping. (Note that the
+intersection of @HSubType x y@ and @HSubType y x@ defines then a
+faithful form of type equivalence for TIPs.) The employed class
+@HBoundType@ is the complement of @HFreeType@ as defined earlier:
+
+\begin{code}
+ class HBoundType e r
+ instance HBoundType e (HCons e l)
+ instance HBoundType e l => HBoundType e (HCons e' l)
+\end{code}
+
+For the sake of heterogeneous collections, we are satisfied with this
+degree of subtyping. One could depart from here to derive an effective
+object system from the TIPs as shown, or perhaps from the records that
+follow below.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Extensible records}
+\label{S:records}
+
+So far we can access heterogeneous lists using naturals or element
+types. We will now define labelled collections, i.e., maps from labels
+to values. We end up defining extensible records this way, without
+requiring the language extensions of earlier proposals.
+
+\medskip
+
+\subsection*{Haskell's nonextensible records recalled}
+
+In Haskell~98, we can define record types like this:
+
+\begin{code}
+ data UnpricedAnimal = UnpricedAnimal {
+           key   :: Integer
+         , name  :: String
+         , breed :: Breed }
+\end{code}
+
+Here is a unpriced cow Angus:
+
+\begin{code}
+ myUnpricedAnimal = UnpricedAnimal {
+          key   = 42
+        , name  = "Angus"
+        , breed = Cow }
+\end{code}
+
+What are access operations that are available for Haskell~98 records?
+We can retrieve components, and we can update records in a point-wise
+fashion:
+
+\begin{code}
+ ghci-or-hugs> breed myUnpricedAnimal
+ Cow
+ ghci-or-hugs>  myUnpricedAnimal { price = 8.8 }
+ UnpricedAnimal{key=42,name="Angus",breed=Cow}
+\end{code}
+
+We can not extend such records (unless we were thinking of nesting
+records and using dummy fields for extension~\cite{Burton90}). Also,
+we can not reuse labels among different record types, neither can we
+treat labels as data; so labels are not first-class citizens.
+
+\medskip
+
+\subsection*{An extensible record demo}
+
+There are different forms of labels, but in all cases we adhere to the
+formula ``a label is a value'', and we adhere to the constraint that
+all label types in a record are distinct. We can define label types as
+silly datatypes (cf.\ App.~\ref{A:labelling} for alternatives):
+
+\begin{code}
+ data Key      = Key
+ data Name     = Name
+ data Breed'   = Breed   -- Note: type Breed taken
+ data Price    = Price
+\end{code}
+
+We build the record for the unpriced cow Angus as follows:
+
+\begin{code}
+ myUnpricedAnimal =  Key    .=. (42::Integer)
+                 .*. Name   .=. "Angus"
+                 .*. Breed  .=. Cow
+                 .*. emptyRecord
+\end{code}
+
+Extensible record construction starts from @emptyRecord@, the
+label-value pairs are connected by ``\verb!.=.!'', and otherwise we
+just use the normal extension notation with the right-associative
+``\verb!.*.!''.
+
+Assuming suitable @Show@ instances for labels, values and records,
+extensible records are printed more or less like Haskell~98 records:
+
+\begin{code}
+ ghci-or-hugs> myUnpricedAnimal
+ Record{Key=42,Name="Angus",Breed=Cow}
+\end{code}
+
+We retrieve a component from a record as follows:\\
+(We use ``@!@'' as an infix version of @hLookup@.)
+
+\begin{code}
+ ghci-or-hugs> myUnpricedAnimal ! Breed
+ Cow
+\end{code}
+
+We can update components as follows:\\
+(We use ``\verb+@+\verb+@+'' as an infix version of @hUpdate@.)
+
+\begin{code}
+ ghci-or-hugs> myUnpricedAnimal @@ Breed .=. Sheep
+ Record{Key=42,Name="Angus",Breed=Sheep}
+\end{code}
+
+We can really extend such records:\\
+(In fact, record construction and record extension coincide.)
+
+\begin{code}
+ ghci-or-hugs> Price .=. 8.8 .*. myUnpricedAnimal
+ Record{Price=8.8,Key=42,Name="Angus",Breed=Cow}
+\end{code}
+
+\medskip
+
+\subsection*{Extensible record types}
+
+We recall that records are conceptually maps from labels to
+values. There are at least two possible representations for these
+maps.  Firstly, we can go for heterogeneous lists of pairs. Secondly,
+we can go for pairs of heterogeneous lists of equal length. We abstract
+from this choice via the following class:
+
+\begin{code}
+ class HZip x y l | x y -> l, l -> x y
+  where
+   hZip   :: x -> y -> l
+   hUnzip :: l -> (x,y)
+\end{code}
+
+A record is then a zipped data structure wrapped into @Record@:
+
+\begin{code}
+ newtype Record l = Record l -- to be constrained
+\end{code}
+
+The public constructor is accordingly constrained:
+
+\begin{code}
+ mkRecord :: (HZip x y l, HTypeIndexed x)
+          => l -> Record l
+ mkRecord =  Record
+\end{code}
+
+The empty record is denoted as follows:
+
+\begin{code}
+ emptyRecord = mkRecord $ hZip HNil HNil
+\end{code}
+%$
+\medskip
+
+\subsection*{Lifted access operations}
+
+We can basically lift all kinds of operations that we have seen
+earlier in the paper. For extensible records, we are definitely
+interested in look-up, extension, and update. Our records are also
+shrinkable; so we care to lift deletion. Iterated look-up, i.e.,
+projection, is generally of interest, too. Finally, appending records
+is useful, too.
+
+Lifting follows a pattern. We map labels to naturals, so that we can
+use the resulting natural-based index in the list of values. To get a
+handle on labels and values, we unzip records. Whenever, we produce
+new records from labels and values, we use zipping. (If we wanted to
+eliminate the need for zipping and unzipping, we would need to operate
+on the ``pair of lists'' or ``list of pairs'' more directly.)
+
+For instance, @HExtend@ is instantiated for records as follows:
+
+\begin{code}
+ instance ( HZip xt yt l
+          , HExtend xv xt x
+          , HExtend yv yt y
+          , HZip x y l'
+          , HTypeIndexed x )
+       =>   HExtend (xv,yv) (Record l) (Record l')
+  where
+   hExtend (xv,yv) (Record l) = mkRecord (hZip x y)
+    where (xt,yt) = hUnzip l
+          x       = hExtend xv xt
+          y       = hExtend yv yt
+\end{code}
+
+\medskip
+ 
+\subsection*{Lifted subtyping}
+ 
+We can also lift subtyping easily from the TIP to the record level. A
+record type @r@ is a subtype of some record type @r'@ if @r@ contains
+at least the labels of @r'@, and it agrees with @r'@ on the types of
+the corresponding values. That is:
+ 
+\begin{code}
+ instance ( HZip x y l'
+          , HProject (Record l) x (Record l') )
+       =>   HSubType (Record l) (Record l')
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Database programming}
+\label{S:db}
+
+We will now use heterogeneous collections for database programming in
+Haskell. To this end, we adopt several ideas from Leijen and Meijer's
+embedding approach for SQL~\cite{LM99}. We will use extensible records
+for two purposes:
+%
+\begin{itemize}
+\item to represent the results of queries, and
+\item to represent schemas for relational algebra operations.
+\end{itemize}
+
+We recall the simple query from the beginning of the paper:
+
+\begin{code}
+ SELECT key,name FROM Animal WHERE breed = 'sheep';
+\end{code}
+
+In Haskell, we can now write this query in a type-safe manner.
+
+\begin{code}
+ selectBreed b = do
+  r1 <- table animalTable
+  r2 <- restrict r1 (\r -> r!Breed `SQL.eq` b)
+  r3 <- project r2 (Key .*. Name .*. HNil)
+  doSelect r3
+\end{code}
+
+Notice that the query is parameterised in the breed @b@.
+
+Type inference works fine, but here is the type of the query anyway:
+
+\begin{code}
+ selectBreed :: Breed -> Query [
+    Key   :=: AnimalId     :*:
+    Name  :=: Maybe String :*:
+    HNil ]
+\end{code}
+
+That is, the result is a query for records with two components. The
+@Key@ component cannot be @NULL@ in the database, but the @Name@ can;
+so we got a @Maybe@ type for the latter.
+
+The above do sequence encodes the SQL query in four steps:
+%
+\begin{itemize}
+\item r1: We identify the table as in ``@FROM Animal@''.
+\item r2: We restrict the table according to the @WHERE@ condition.
+\item r3: We perform projection as in ``@SELECT key,name@''.
+\item @doSelect r3@: The actual query is issued.
+\end{itemize}
+%
+The first three steps do \emph{not} involve any database access. The
+operations @table@, @restrict@, @project@ create or modify
+\emph{type-annotated, syntactical expressions} for relations. Roughly,
+the underlying key data structure looks as follows:
+
+\begin{code}
+ data Relation schema  -- type annotation layer
+   =  Relation schema SqlRelation
+\end{code}
+
+\begin{code}
+ data SqlRelation      -- expression layer
+   =  SqlRelation {
+    rTag           :: SqlTag,
+    rSource        :: SqlSource, 
+    rRestrictList  :: [SqlExpression],
+    rProjectList   :: [SqlExpression],
+    rGroupList     :: [SqlExpression],
+    rOrderList     :: [SqlExpression] }
+\end{code}
+
+That is, relations carry a schema, and their structural ingredients
+comprise a unique tag, a source (i.e., a database table), as well as
+lists of expressions describing restrictions (cf.\ @WHERE@),
+projections (incl.\ computed columns), grouping and ordering.
+
+The type of the relational schema for animals is the following:
+
+\begin{code}
+ type AnimalSchema =
+   Key    :=: Attribute AnimalId SqlInteger :*:
+   Name   :=: Attribute String   SqlVarchar :*:
+   Breed' :=: Attribute Breed    SqlVarchar :*:
+   Price  :=: Attribute Float    SqlNumeric :*:
+   Farm   :=: Attribute FarmId   SqlInteger :*:
+   HNil
+\end{code}
+
+The schema type actually lists both the domain of a column and the
+corresponding lower level SQL type. For instance, the @Key@ component
+uses the Haskell newtype @AnimalId@ whereas the database uses the
+physical @SqlInteger@ type. The @newtype@-based domain reification
+adds even stronger type checking: one cannot possibly confuse an
+@AnimalId@ and a @FarmId@.
+
+The datatype @Attribute@ is a phantom type in its two type
+parameters. These phantoms drive coercions and make attribute
+access type-safe. For instance, consider the expression
+%
+@r!Breed `SQL.eq` b@, which is used for restriction in the above
+query.  The look-up @r!Breed@ does not just establish that there is a
+@Breed@-labelled component, but it also delivers a phantom-typed
+attribute, so that its use in the compound expression is
+type-constrained.
+
+Structurally, attributes keep track of some details such as the name
+in the database, the precision, and NULL constraints. All such
+information is extracted from the data dictionary of a database.
+
+Here is a snippet of the extracted table description for animals:
+
+\begin{code}
+ animalTable :: Table AnimalSchema
+ animalTable =  mkTable "Animal" (
+   Key  .=. Attribute { attrName="key", ... }  .*.
+   Name .=. Attribute { attrName="name", ... } .*.
+   ... HNil )
+\end{code}
+
+This is all what's needed to make attribute access type-safe.
+Returning query results of the appropriate type relies on further
+provisions. That is, the action @doSelect@ for executing a query has
+to recast query results such that they are phrased in the Haskell
+types for column domains.
+
+The code for the execution of @SELECT@s makes it all clear:
+
+\begin{code}
+ doSelect (Relation schema rel) = do
+    sqlDo (showSqlRelation rel)
+    rows <- getSqlRows
+    return $ map ( labelHList labels
+                 . readHList  values
+                 ) rows
+  where
+   (labels,values) = hUnzip schema
+\end{code}
+
+The subexpression @showSqlRelation rel@ computes the @SELECT@
+statement as a string, which is then given to @sqlDo@~---~the
+low-level, ODBC-based SQL handler. In the next step, we get all the
+queried rows as a lazy list of lists using this SQL service:
+
+\begin{code}
+ getSqlRows :: SqlHandle [[Maybe String]]
+\end{code}
+
+The subsequent @map@ transforms the string-based @rows@ into typeful
+ones in two steps. Firstly, we build an @HList@ from the strings with
+@readHList@, while we use the values of the schema (i.e., the
+attributes) to drive this heterogeneous list construction. Secondly,
+we turn the @HList@ into a record, while we reuse the labels of the
+schema.
+
+A detailed discussion of the database interface is beyond the scope of
+this paper. We note however that the approach scales to the full
+relational algebra, and to a rich set of SQL idioms including all
+kinds of joins, existential quantification, nested queries, and table
+statements. We are currently developing a complex database application
+using the described approach.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{By chance or by design?}
+\label{S:chance}
+
+In Sec.~\ref{S:HTypeDriven}, we started to assume the existence of an
+class @TypeNotEq@. This class should serve for constraints on types
+being not equal (in the sense of Haskell's type system). We now
+discuss the issues surrounding the definition of type equality and
+inequality, while we give several implementations differing regarding
+simplicity, genericity, and portability.
+
+\medskip
+
+\subsection*{Explosive type inequality}
+
+Rather than defining immediately @TypeNotEq@, let us first consider
+the inverse: type equality. There is a trivial implementation:
+
+\begin{code}
+ class TypeEq x y
+ instance TypeEq Bool Bool
+ instance TypeEq Int Int
+ instance ( TypeEq x x', TypeEq y y' )
+       =>   TypeEq (x->y) (x'->y')
+\end{code}
+
+This is the most portable implementation (Haskell~98 + multi-parameter
+classes), and also the least generic. We need an instance for each
+type constructor. One can live with this requirement, but just
+barely. The ``opposite'' constraint, @TypeNotEq@ can, in principle, be
+defined similarly:
+
+\begin{code}
+ class TypeNotEq x y
+ instance TypeNotEq Bool Int
+ instance TypeNotEq Int Bool
+ instance TypeNotEq (x->y) Bool
+\end{code}
+
+Now, the number of instances to define explodes: we need instances to
+relate each type constructor to all other type constructors. We
+mention this ``solution'' merely to point out its existence.
+
+\medskip
+
+\subsection*{Representation-based type inequality}
+
+A more scalable approach is to introduce a family of infinite types
+for type-level type representations. That is, we associate types with
+type representations via a bijection, and we make sure that type
+representations are more easily compared than the types themselves. We
+already have all tools for constructing the family of type
+representations: we can associate with each type constructor an
+@HNat@, and associate with each type term an @HList@ of the
+representations for the type constructor and its arguments:
+
+\begin{code}
+ class TTypeable a b | a-> b
+ instance TTypeable Bool (HCons HZero HNil)
+ instance TTypeable Int  (HCons (HSucc HZero) HNil)
+ instance (TTypeable a al, TTypeable b bl)
+  => TTypeable (a->b) (HCons (HSucc (HSucc HZero))
+                       (HCons al (HCons bl HNil)))
+\end{code}
+
+Because these type representations are constructed in a regular way
+with ever-increasing naturals, a type-level predicate @TTypeRepEqBool@
+for equality of type representations is easily be defined in a closed
+form.
+
+\begin{code}
+ class TTypeRepEqBool x y b | x y -> b
+\end{code}
+
+Given two type representations @x@ @y@, we compute (statically) a
+Boolean @b@. To this end, we assume type-level Booleans as follows:
+
+\begin{code}
+ data HTrue  = HTrue  -- no definition needed here
+ data HFalse = HFalse -- no definition needed here
+\end{code}
+
+The required computation is a straightforward two-parameter traversal
+on the type representations; details are found in
+App.~\ref{A:TTypeRepEqBool}. The encoding employs Haskell~98 and
+multi-parameter classes with uni-directional functional dependencies,
+which is no problem for GHC and Hugs.
+
+We can now define the class @TypeNotEq@:
+
+\begin{code}
+ class TypeNotEq x y b
+ instance ( TTypeable x t, TTypeable y t',
+            TTypeRepEqBool t t' HFalse )
+       =>   TypeNotEq x y
+\end{code}
+
+We can also define a versatile predicate instead:
+
+\begin{code}
+ class TypeEqBool x y b | x y -> b
+ instance ( TTypeable x t, TTypeable y t',
+            TTypeRepEqBool t t' b )
+       =>   TypeEqBool x y b
+\end{code}
+
+We use minor Haskell~98 extensions here, which are provided by GHC and
+Hugs. That is, we make use of generic instances and type terms in
+constraints (as opposed to simple variables). In turns out that we
+have essentially transposed what's known as the @Data.Typeable@
+approach~\cite{LPJ03} to the type level. We share the drawback of this
+approach: we still need to define an instance of @TTypeable@ for each
+type constructor. (The class @TTypeRepEqBool@ on the other hand is
+fully generic and does not need to be amended at all.) When we add new
+instances to @TTypeable@ for new type constructors, we have to
+maintain the bijection between types and type representations. We
+would rather like to avoid making such usage assumptions.
+
+\medskip
+
+\subsection*{Generic type inequality}
+
+We have seen that we can implement @TypeNotEq@ and @TypeEqBool@ in a
+portable and even practically usable way, using only commonly
+supported Haskell extensions. We would like to introduce a fully
+generic approach, which works for all type constructors and does not
+to be amended when a new type constructor is introduced. Alas, this
+elegant approach leads us out of the safe haven into uncharted waters
+of experimental extensions.
+
+We should first remark that once we have availed themselves to generic
+instance heads (as supported by Hugs and GHC for a long time now) we
+can define @TypeEq@ in a fully generic way:
+
+\begin{code}
+ class TypeEq x y
+ instance TypeEq x x
+\end{code}
+
+Perhaps surprisingly, we can negate this definition for inequality.
+We start with the following approximation:
+
+\begin{code}
+ class TypeNotEq x y
+ instance TypeNotEq x y
+\end{code}
+
+Obviously, the given instance would also apply to the case that both
+types are equal. We can discard this unwanted case by adding the following
+overlapping instance:
+
+\begin{code}
+ instance Fail () => TypeNotEq x x
+ class Fail a -- a class without instances
+\end{code}
+
+This new instance is strictly more specific than the first one, and it
+captures the case that the two types are equal. When this instance is
+selected, it will nevertheless fail ultimately because it is
+constrained by @Fail ()@, and the class @Fail@ is uninstantiated. Thus,
+the constraint @TypeNotEq x y@ on two types holds only if the types in
+question are not equal.
+
+Admittedly, we rely on overlapping instances, which are generally
+debated. We recall that instance selection is done exclusively on the
+basis of the syntactical forms of the instance heads. So one should
+not expect that the failing constraint @Fail ()@ starts any
+backtracking. There is no such backtracking. This implementation of
+@TypeNotEq@ works both on Hugs and GHC~---~using appropriate flags. A
+generic implementation of an equality predicate @TypeEqBool@ is
+discussed in App.~\ref{A:TypeEqBool}. We should note that if we have
+the implementation of @TypeEqBool@, we can easily derive the classes
+@TypeEq@ and @TypeNotEq@.
+
+\begin{code}
+ class TypeEq x y
+ instance TypeEqBool x y HTrue => TypeEq x y
+ class TypeNotEq x y
+ instance TypeEqBool x y HFalse => TypeNotEq x y
+\end{code}
+
+\medskip
+
+\subsection*{No need for overlapping instances}
+
+Once we have a type-level predicate for type equality, we can actually
+avoid all overlapping instances in our type-driven
+functionality. Whenever we would normally do overlapping to deal with
+type equality and inequality, we can use a chain of constraints
+@TypeEqBool x y b, AuxClass b ...@ instead. The @AuxClass@ will have
+one instance for @HTrue@ and the other, non-overlapping instance, for
+@HFalse@. This scheme is demonstrated by reconstructing the class
+@HOccurs@.
+
+Recall the class declaration:
+
+\begin{code}
+ class HOccurs e l where hOccurs :: l -> e
+\end{code}
+
+We instantiate this class as follows:
+
+\begin{code}
+ instance ( TypeEqBool e e' b
+          , HOccursBool b e (HCons e' l) )
+       =>   HOccurs e (HCons e' l)
+  where
+   hOccurs (HCons e' l) = e
+    where
+     e = hOccursBool b (HCons e' l)
+     b = typeEqBool (hProxy e) (hProxy e')
+\end{code}
+
+That is, we compare the type of interest and the type of the head at hand.
+The resulting Boolean, together with the original list is then passed to
+an auxiliary class @HOccursBool@:
+
+\begin{code}
+ class  HOccursBool b e l
+  where hOccursBool :: b -> l -> e
+\end{code}
+
+The following instances are the same as for the overlapping
+definition, but overlapping is avoided by the additional argument:
+
+\begin{code}
+ instance ( HList l, HFreeType e l )
+       =>   HOccursBool HTrue e (HCons e l)
+  where     hOccursBool _ (HCons e _) = e
+\end{code}
+
+\begin{code}
+ instance ( HOccurs' e l, HList l )
+       =>   HOccursBool HFalse e (HCons e' l)
+  where     hOccursBool _ (HCons _ l) = hOccurs' l
+\end{code}
+
+Thus, all our code can avoid overlapping instances, so that it works
+for both Hugs and GHC, provided @TypeEqBool@ is available. At the
+beginning of this section we have shown that by sacrificing generality
+(to the same extent as done by @Data.Typeable@) we can implement
+@TypeEqBool@ soundly and practically using only commonly supported
+extensions. The fully generic implementation (App.~\ref{A:TypeEqBool})
+is, alas, GHC specific. It makes stronger assumptions about type
+classes, namely instance selection must be lazy in a certain way.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Related work}
+\label{S:related}
+
+\medskip
+
+\subsection*{Heterogeneous lists}
+
+Type-level list-processing is a relatively obvious opportunity in the
+view of general type-level or faked dependently typed
+programming~\cite{Fake,Hallgren01}. For instance, homogeneous
+type-level vectors are considered in~\cite{Fake}. The idea of
+heterogeneous type-level constructors (what we call @HNil@ and
+@HCons@) also occurs in the literature. We have traced one occurrence
+in App.~H of~\cite{DPJSS04}, where Duck et al.\ motivate their
+CHR-based model of functional dependencies by operating on such lists
+using type-level naturals for indexing (similar to our @HArray@s).  We
+have traced another occurrence in~\cite{NTGS01,NTGS02}, where Neubauer
+et al.\ motivate Haskell extensions for a functional notation of
+functional dependencies, and for functional logic overloading. The
+authors consider examples like type-level functions \emph{append} and
+\emph{length}, as well as record-like operations. Our layers of
+type-driven or type-indexed access are original. Also, we aim at a
+broad exploration of different kinds of heterogeneous collections:
+lists, arrays, TIPs (and TICs; see App.~\ref{A:TIC}), records,
+variants, including various constraints such as subtyping. \HList\ is
+the first heterogeneous collection library to the best of our
+knowledge.
+
+\medskip
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Type-indexed rows}
+
+Shield and Meijer have studied the type theory of extensible records
+and variants starting from a more basic principle, namely type-indexed
+rows (TIRs)~\cite{SM01}. A TIR is nothing but a type expression that
+enumerates types. This resembles @HList@s, but TIRs do not comprise
+any values. So we could go for constructor-less datatypes:
+
+\begin{code}
+ data Empty        -- empty row constructor
+ data elem :#: row -- non-empty row constructor
+\end{code}
+
+\begin{code}
+ class TIR row
+ instance TIR Empty
+ instance TIR row => TIR (elem :#: row)
+\end{code}
+
+A TIR is well-formed if the enumerated types are distinct.
+Well-formedness corresponds to our @HTypeIndexed@ constraint. Shield
+and Meijer provide type-level operators \emph{ALL} and \emph{ONE}
+that, given a TIR, derive type-indexed products (TIPs; recall
+Sec.~\ref{S:TIP}) and type-indexed co-products (TICs; cf.\
+App.~\ref{A:TIC}). We can redefine our datatypes for TIPs and TICs
+such that they take a TIR as parameter, but these definitions and
+their usage would be more complicated in Haskell. Shield and Meijer
+argue that, conceptually, a newtype-like mechanism is sufficient for
+labelling. For convenience, we have derived records as a further
+collection type (and variants are easily dualised like that).
+
+Bottom line: we have shown that one can reconstruct TIPs, TICs, etc.\
+as datatypes in Haskell without requiring language extensions. 
+
+\medskip
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Extensible records}
+
+Foundations of extensible records have been studied intensively.
+Several Haskell language extensions have been
+proposed~\cite{GJ96,SM01,PJM03}, alike for other languages, e.g.,
+(S)ML~\cite{Burton90,Remy94}. There are also record calculi like the
+one underlying Jigsaw~\cite{BL92}, or typed relational
+algebra~\cite{BW02}. We have shown that we can define extensible
+records faithfully in Haskell starting from simpler notions; in
+particular: heterogeneous lists and type equality. We cover all
+typical record operators (cf.\ Bracha and Lindstrom's
+calculus~\cite{BL92}). We have also defined subtyping constraints in
+our framework.
+
+Labels, values and records are all first-class citizens. So we can
+write abstractions that take and produce entities of all these
+kinds. For instance, here is an operator to rename a label in a
+record:
+
+\begin{code}
+ hRename l l' r@(Record _) = r''
+  where
+   v   = hLookup r l       -- Save value
+   r'  = hDelete r l       -- Delete old label 
+   r'' = hExtend (l',v) r' -- Extend with new label
+\end{code}
+
+\medskip 
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Type equality and type-safe cast}
+
+In our development of heterogeneous collections, we rely on
+observability of type equality and inequality at several
+occasions. Also, several access operations implicitly perform a
+type-safe cast. Such expressiveness has been studied in the context of
+intensional polymorphism~\cite{HM95}, dynamic
+typing~\cite{ACPP89,ACPR92}, and universal
+representations~\cite{Yang98}. Some more recent Haskell-biased work on
+these notions~\cite{Weirich00,CH02,BS02} is not directly usable for
+our purposes. These approaches either require the programmer to use
+type representations, or they make a closed-world assumption with
+regard to the covered types, or they are focused on sums-of-products
+(as opposed to the immediate coverage of Haskell's newtypes and
+datatypes), or they involve existential quantification (which makes it
+difficult to perform more arbitrary operations on elements in the
+collections).
+
+\medskip
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Haskell's type classes}
+
+Multi-parameter classes~\cite{CHO92,MPJ92,MPJ95,PJJM97} with
+functional dependencies~\cite{MPJ00,DPJSS04} are absolutely crucial
+for type-level programming. These typing notions are reasonably
+matured by now. There is an ongoing debate if instance selection
+should be more programmable by using constraint-handling rules or
+functional logic evaluation~\cite{SS02,NTGS02}. Also, the mere
+notation for encoding type-level functions could perhaps be
+improved~\cite{NTGS01}. Overlapping instances can be used for the
+perhaps intuitive definition of some of our access operations, but it
+is not essential, as we have shown in Sec.~\ref{S:chance}.
+
+\medskip
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\subsection*{Statically enforced invariants}
+
+The @TIP@ newtype is an example of a data structure with a statically
+checked invariant (i.e., uniqueness). Okasaki and others have worked
+on statically assuring invariants of complex data types, e.g., that a
+matrix is square~\cite{Okasaki99}. These examples normally rely on
+cleverly chosen data constructors, which make it impossible to
+construct ``wrong'' data structures. Our approach is different: type
+classes let us impose static constraints irrespective of data
+constructors. Indeed, we use the same data constructor @HCons@ to build
+heterogeneous lists with and without duplicates. We express the
+constraints in types (sometimes, in phantom types). Our approach does
+not require extraordinary cleverness in the design of data
+representation. Furthermore, in the case of constraints encoded in
+phantom types, there is no run-time or -space overhead of storing and
+traversing chains of data constructors (@TIP@ is just as efficient as
+@HList@). Because @TIP@ is essentially @HList@, we were able to
+trivially lift all list-processing functions to @TIP@s. Statically
+checking complex invariants on data structures, such as
+well-formedness of red-black trees and size-boundaries of lists, is a
+known application of dependent types~\cite{XP99}. The latter is a
+non-trivial extension to a programming language. We have shown that
+certain invariants, e.g., size boundaries for @HList@s, or uniqueness
+in @TIP@s, can be statically expressed in Haskell type system already.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\section{Conclusion}
+\label{S:concl}
+
+We have systematically developed a library over strongly-typed
+heterogeneous data structures~---~lists, sets, (constrained) records.
+The composition of such a data structure, e.g., the types of all
+elements, is manifest in its type. This makes it possible to strongly
+type various collection operations, e.g., retrieval and
+projections. All advanced data structures in our library are built
+from typeful heterogeneous lists.  We have defined restricted
+collections, e.g., @TIP@s, constrained by the requirement that no two
+elements may have the same type. The constraints are again manifest in
+the type of the collection and are enforced by the type checker.
+
+The immediate application of our \HList\ library is a database access
+library that expresses the full extent of SQL92, returns the query
+results as a stream of records, and statically checks that all the
+queries are consistent with the database schema.
+
+The implications of the library \HList\ turn out far reaching, and are
+still under active investigation. Our @TIP@s and @Record@s are
+extensible, offer subtyping polymorphism, have first-class labels that
+can be reused across several record types. This, along with the fact
+that \HList\ is implemented in Haskell with only common extensions and
+thus breaks no existing programs seem to answer the challenge for
+better Haskell records articulated by Simon Peyton Jones at the
+Haskell Workshop 2003~\cite{HW03}. Our @Record@s also let us implement
+@has@/@lacks@, record concatenation, length vs.\ depth subtyping. We
+can now test usefulness of these features in real programs~---~again,
+without requiring any extension to the language.
+
+Extensible @TIP@s and @Record@s can be the foundation of the genuine
+object system. The latter offers subtyping polymorphism (OCaml), which
+goes in the different direction from the class-based bounded
+polymorphism of Haskell. It is remarkable that type classes themselves
+were instrumental in implementing open @TIP@s. Dual to @TIP@s are open
+@TIC@s, offering us @Dynamic@s with a statically-checkable constraint
+on the sort of types encapsulated into the Dynamic envelope.
+
+@HList@s, @TIP@s and @TIC@s have an immediate application in typeful
+foreign-function interfaces and in XML processing. @TIC@s naturally
+encode unions and XML alternatives whereas @HList@s encode argument
+lists, C/IDL-like @struct@s and XML sequences. In addition, @TIP@s
+express cardinality (uniqueness) constraints (occurrence constraints
+in XML Schema).
+
+Our code relies on the most common Haskell extensions; the use of
+overlapping instance extension can be factored out to only one class
+@TypeEqBool@. Even there it could be eliminated if we sacrifice a bit
+of genericity~---~to the extent already done in @Data.Typeable@.
+Based on our experience we pose (this is a speculation!) that any use
+of overlapping instances can be eliminated likewise. The loss of
+genericity and convenience present in the portable implementation of
+@TypeEqBool@ can be overcome if the latter were offered as a primitive
+in Haskell, which we so propose.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\bibliography{paper}
+\bibliographystyle{abbrv}
+
+\bigskip
+
+\newpage
+
+\appendix
+
+{\large 
+
+The appendices provide some optional details.
+
+}
+
+\medskip
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Some trivial list-processing operators}
+\label{A:HList}
+
+We will now transpose several normal list-processing operators to the
+heterogeneous situation. In due the course, we need type-level naturals
+and Booleans:
+
+\begin{code}
+ data HZero   = HZero
+ data HSucc x = HSucc x
+ data HTrue   = HTrue
+ data HFalse  = HFalse
+\end{code}
+
+\medskip
+
+\subsection*{Transposition of @head@ and @tail@}
+
+\begin{code}
+ class  HList r => HHead r a | r -> a
+  where hHead :: r -> a
+\end{code}
+
+\begin{code}
+ instance AssertFail HListEmpty => HHead HNil ()
+  where hHead _ = ()
+\end{code}
+
+\begin{code}
+ instance HList r => HHead (HCons a r) a
+  where hHead (HCons a _) = a
+\end{code}
+ 
+\begin{code}
+ class (HList r,HList r') => HTail r r' | r -> r'
+  where hTail :: r -> r'
+\end{code}
+
+\begin{code}
+ instance AssertFail HListEmpty => HTail HNil HNil
+  where hTail _ = HNil
+\end{code}
+
+\begin{code}
+ instance HList r => HTail (HCons a r) r
+  where hTail (HCons _ r) = r
+\end{code}
+
+In the above instances, we illustrate a technique to facilitate
+instructive type error messages in case of invalid applications of the
+operations. That is, we assume a class @AssertFail@ without any
+instance. This class is used for instance constraints, when we want to
+explicitly trigger failure, e.g., when an attempt is made to take the
+head of an empty list. So the class is always parameterised with a
+type like @HListEmpty@, the name of which is meant to describe the
+cause of the problem. We assume:
+
+\begin{code}
+ class AssertFail x  -- no instances!
+ data HListEmpty     -- no structure!
+\end{code}
+
+\medskip
+
+\subsection*{Transposition of @null@}
+
+\begin{code}
+ class HNull l b | l -> b
+  where
+   hNull :: l -> b
+\end{code}
+
+\begin{code}
+ instance HNull HNil HTrue
+  where
+   hNull _ = HTrue
+\end{code}
+
+\begin{code}
+ instance HNull (HCons e l) HFalse
+  where
+   hNull _ = HFalse
+\end{code}
+
+\medskip
+
+\subsection*{Transposition of @length@}
+
+\begin{code}
+ class HLength l n | l -> n  
+  where 
+   hLength :: l -> n
+\end{code}
+
+We omit the method definitions.
+
+\begin{code}
+ instance HLength HNil HZero
+ instance HLength l n
+       => HLength (HCons e l) (HSucc n)
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{A heterogeneously typed fold operator}
+\label{A:HFoldr}
+
+We go for the fold operation because it is the ultimate example of a
+higher-order list-processing function. We dedicate a class @HFoldr@ to
+right-associative folding. The @HFoldr@ instances will lift the
+defining equations for @foldr@ to the class level:
+
+\begin{code}
+ class HList l => HFoldr f v l r | f v l -> r
+  where
+   hFoldr :: f -> v -> l -> r
+\end{code}
+
+The instance for empty lists is trivial:
+
+\begin{code}
+ instance HFoldr f v HNil v
+  where
+   hFoldr _ v _ = v
+\end{code}
+
+The instance for @HCons@ follows the normal @foldr@ again, but we
+assume that function application is modelled by an extra class
+@HApply@. This allows us to use @hFoldr@ for functions that require
+specific constraints on the involved types:
+
+\begin{code}
+ instance (HFoldr f v l r, HApply f (e,r) r')
+       =>  HFoldr f v (HCons e l) r'
+  where
+   hFoldr f v (HCons e l) = hApply f (e,hFoldr f v l)
+\end{code}
+
+The class @HApply@ resembles function application, indeed:
+
+\begin{code}
+ class HApply f a r | f a -> r
+ where
+  hApply :: f -> a -> r
+\end{code}
+
+For instance, we can now redefine @hAppend@ in terms of @hFoldr@:
+
+\begin{code}
+ hAppend l l' = hFoldr ApplyHCons l' l
+\end{code}
+
+The datatype @ApplyHCons@ stands for ``application of @HCons@'':
+
+\begin{code}
+ data ApplyHCons =
+      ApplyHCons -- a proxy for instance selection
+\end{code}
+
+This meaning of @ApplyHCons@ is registered as an @HApply@ instance:
+
+\begin{code}
+ instance HApply ApplyHCons (e,l) (HCons e l)
+  where
+   hApply _ (e,l) = HCons e l
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Type-indexed co-products}
+\label{A:TIC}
+
+We will now dualise TIPs to arrive at so-called type-indexed sums (or
+co-products; TICs). A TIC-typed data structure holds a datum of one
+out of a fixed collection of types.  So at the value level, a
+TIC-typed data structure is not really a collection, but just one
+datum. However, at the type level we use a list of type proxies to
+maintain the valid element types of a specific TIC type, and thereby
+we can restrict construction and destruction of TIC-like data
+structures.
+
+\medskip
+
+\subsection*{A TIC demo}
+
+We first define an actual TIC type, namely one that models various
+element types for collections related to the animals in the \fm\
+database:
+
+\begin{code}
+ type AnimalCol =
+   Key :+: Name :+: Breed :+: Price :+: HNil
+\end{code}
+
+Here we use ``\verb!:+:!'' rather than ``\verb!:*:!'' to point out
+that we are interested in a type-indexed co-product rather than a
+product. We can now construct actual TIC-like data. For instance:
+
+\begin{code}
+ ghci-or-hugs> let myCol = mkTIC Cow :: TIC AnimalCol
+\end{code}
+
+We can also destruct @myCol@. If we ask for the `right' type, then
+destruction succeeds with a result of the form @Just ...@; otherwise
+we obtain @Nothing@:
+
+\begin{code}
+ ghci-or-hugs> unTIC myCol :: Maybe Breed
+ Just Cow
+ ghci-or-hugs> unTIC myCol :: Maybe Price
+ Nothing
+\end{code}
+
+Most notably, TICs restrict destruction with regard to static typing:
+
+\begin{code}
+ ghci-or-hugs> unTIC myCol :: Maybe String
+ Type error ...
+\end{code}
+
+\medskip
+
+\subsection*{Sequences of type proxies}
+
+We used the alias ``\verb!:+:!'' above to enumerate the summands of a
+TIC type. In fact, ``\verb!:+:!'' is constructed such that it lines up
+proxy types in a sequence. Value types would be misleading and
+confusing here because the sequence of summands is meant for nothing
+but listing `options'. So the alias is defined as follows:
+
+\begin{code}
+ infixr 2 :+:
+ type e :+: l = HCons (HProxy e) l
+\end{code}
+
+The actual property of a type sequences to consist only of proxy types
+is easily specified. We also require the @HTypeIndexed@ property via
+the superclass because double occurrences of type proxies are not
+meaningful.
+
+\begin{code}
+ class HTypeIndexed l => HTypeProxied l
+ instance HTypeProxied HNil
+ instance (HTypeProxied l, HFreeType (HProxy e) l)
+       =>  HTypeProxied (HCons (HProxy e) l)
+\end{code}
+
+\medskip
+
+\subsection*{TICs as constrained dynamics}
+
+The demo suggests that a TIC is more constrained than the type
+@Dynamic@.  So in turn, one can define more constrained collection
+types than just @[Dynamic]@ or @String -> Dynamic@. There exist
+different implementations of TICs, but we will favour here one that
+indeed directly employs Haskell's dynamics at the value level.
+
+A TIC type is then of the following form:
+
+\begin{code}
+ data TIC l = TIC Dynamic -- to be constrained
+\end{code}
+
+The phantom type parameter @l@ of @TIC@ enumerates the admitted types
+that can be injected into this TIC, and that can be subject to
+extraction attempts. The public constructor for TICs (aka injection)
+lists all the necessary constraints:
+
+\begin{code}
+ mkTIC   :: ( HTypeProxied l
+            , HBoundType (HProxy i) l
+            , Typeable i
+            ) => i -> TIC l
+ mkTIC i = TIC (toDyn i)
+\end{code}
+
+The @HTypeProxied@ constraint requires that @l@ is a type-indexed
+sequences of type proxies. The @HBoundType@ constraint ensures that
+the proxy type of the injected value @i@ is covered by the sequence of
+proxies @l@. Finally, the @Typeable@ constraint allows us to use
+Haskell's module @Data.Dynamic@.
+
+It remains to define destruction (or projection), which happens to
+simply invert the constrained value-to-dynamics conversion:
+
+\begin{code} 
+ unTIC :: ( HTypeProxied l
+          , HBoundType (HProxy o) l
+          , Typeable o
+          ) => TIC l -> Maybe o
+ unTIC (TIC i) = fromDynamic i
+\end{code}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{More options for record labels}
+\label{A:labelling}
+
+In Sec.~\ref{S:records}, we have used one silly datatype per label.
+This approach is simple and general, but there are other options for
+label types that are worth mentioning.
+
+\medskip
+
+\subsection*{Type proxies as labels}
+
+There is no need to invent a label for a record component, if the type
+of values is sufficiently distinguished, i.e., the type is supposed to
+be used at most once. Then we can rather `self-label' these
+components. Primitive datatypes (such as those of SQL) are perhaps not
+sufficiently distinguished in this sense, but programmer-defined
+datatypes and newtypes are often distinguished. By self-labelling we
+mean that we use the proxy for the type of values as the label
+type. For instance, we can define a label @breed@ together with its
+label type as follows:
+
+\begin{code}
+ type Breed' = HProxy Breed -- Note: type Breed taken
+ breed = HProxy :: Breed'
+\end{code}
+
+\medskip
+
+We can slightly improve notation for this sort of label.
+
+Normally we construct record types and records as follows:
+
+\begin{code}
+ type MyRecType = ... :*: Breed' :=: Breed :*: ...
+\end{code}
+
+\begin{code}
+ myRec = ... .*. breed .=. Cow .*. ...
+\end{code}
+
+We can make `self-labelling' explicit as follows:
+
+\begin{code}
+ type MyRecType = ... :*: SelfLabelled Breed :*: ...
+\end{code}
+
+\begin{code}
+ myRec = ... .*. selfLabelled Cow .*. ...
+\end{code}
+
+To this end, we assume the following definitions:
+
+\begin{code}
+ type SelfLabelled x = (HProxy x,x)
+ selfLabelled x = (hProxy x,x)
+\end{code}
+
+\medskip
+
+\subsection*{Enumerable, named labels}
+
+The most crucial property of labels is indeed that they are of
+different types. So one could type-level naturals as label types:
+
+\begin{code}
+ key   = HZero
+ name  = HSucc key
+ breed = HSucc name
+ price = HSucc breed
+\end{code}
+
+On the positive side, this scheme even demonstrates that we can
+generate labels as much as we wish. We will never run out of labels.
+This simple scheme suffers from two shortcomings however. Firstly, the
+label types inhabit one global name space. Two different modules
+cannot easily use their own labels. Secondly, we would like to @show@
+records, but the intended names @key@, @name@, \ldots are not carried
+by the label types.
+
+We define a constructor for label types that elevates these problems:
+
+\begin{code}
+ data Label ns dt = Label ns dt String
+\end{code}
+
+The type parameter @ns@ is meant for the name space.  The type
+parameter @dt@ is to be instantiated as a type-level natural for a
+label type within the name space. The @String@ component allows us to
+store the name of the label. There are three operations on @Label@:
+
+\begin{code}
+ firstLabel :: String -> ns -> Label ns HZero
+ firstLabel str ns = Label ns HZero str
+\end{code}
+
+\begin{code}
+ nextLabel :: HNat nat => String 
+           -> Label ns nat
+           -> Label ns (HSucc nat)
+ nextLabel str (Label ns nat _)
+   = Label ns (HSucc nat) str
+\end{code}
+
+\begin{code}
+ labelString :: Label ns dt -> String
+ labelString (Label _ _ str) = str
+\end{code}
+
+Let us illustrate such labelling for the \fm\ database.
+
+We first define a silly datatype for a dedicated name space:
+
+\begin{code}
+ data FAM = FAM -- the fout-n-mouth name space
+\end{code}
+
+We define the various labels.
+
+\begin{code}
+ key     = firstLabel "key"     FAM
+ name    = nextLabel  "name"    key
+ breed   = nextLabel  "breed"   name
+ price   = nextLabel  "price"   breed
+\end{code}
+
+Reconstructing Angus looks as follows:
+
+\begin{code}
+ myAnimal =  key   .=. (42::Integer)
+         .*. name  .=. "Angus"
+         .*. breed .=. Cow
+         .*. price .=. (75.5::Float)
+         .*. emptyRecord
+\end{code}
+
+An advantage of this labelling scheme is that Haskell's normal name
+spaces are not so much stressed as in the case of ``a label is a
+constructor of an extra datatype''.  Also, we have a notion of label
+generation (cf.\ @nextLabel@), which allows us to introduce more
+labels in case we need to reestablish uniqueness of labels. This is,
+for example, necessary when projection can duplicate columns or
+compute new columns.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Comparison of type representations}
+\label{A:TTypeRepEqBool}
+
+We fill in some details for Sec.~\ref{S:chance}. That is, we define a
+class for comparison of type-level type representations:
+
+\begin{code}
+ class TTypeRepEqBool x y b | x y -> b
+\end{code}
+
+The following instance encodes termination with @HTrue@:
+
+\begin{code}
+ instance TTypeRepEqBool HNil HNil HTrue
+\end{code}
+
+There are two cases how inequality materialises:
+
+\begin{code}
+ instance TTypeRepEqBool  HNil
+                         (HCons a b) HFalse
+ instance TTypeRepEqBool (HCons HZero l) 
+                         (HCons (HSucc a) l') HFalse
+\end{code}
+
+The remaining instances descend into type representations:
+
+\begin{code}
+ instance TTypeRepEqBool l l' r =>
+          TTypeRepEqBool (HCons HZero l)
+                         (HCons HZero l') r
+ instance TTypeRepEqBool (HCons n l)
+                         (HCons n' l') r
+       => TTypeRepEqBool (HCons (HSucc n ) l )
+                         (HCons (HSucc n') l') r
+ instance TTypeRepEqBool l l' r =>
+          TTypeRepEqBool (HCons HNil l )
+                         (HCons HNil l') r
+ instance TTypeRepEqBool (HCons a (HCons t l))
+                         (HCons a' (HCons t' l')) r
+       => TTypeRepEqBool (HCons (HCons a  t ) l )
+                         (HCons (HCons a' t') l') r
+\end{code}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{A generic predicate for type equality}
+\label{A:TypeEqBool}
+
+We define a generic predicate for type equality.
+
+We start with the following approximation for the predicate:
+
+\begin{code}
+ class    TypeEqBool x y b
+ instance TypeEqBool x x HTrue
+ instance TypeEqBool x y HFalse
+\end{code}
+
+The instances are not overlapping. However, this class is not
+satisfactory: we wish the relation @TypeEqBool x y HFalse@ held if and
+only if types @x@ and @y@ are not equal. If the types are equal, they
+should be related to @HTrue@.
+
+Our wish can be expressed as a functional dependency @x y -> b@ for
+our class. We need this functional dependency anyway because clients
+of @TypeEqBool@ expect the truth value to be uniquely
+defined. However, the above instances of @TypeEqBool@ do not satisfy
+the dependency (as Haskell compilers will promptly tell us if we add
+that dependency to the above class declaration). Indeed, according to
+the instances, both constraints @TypeEqBool Int Int HTrue@ and
+@TypeEqBool Int Int HFalse@ hold. We may attempt to fix the problem by
+adding the constraint @TypeNotEq x y@ to the second instance of
+@TypeEqBool@.
+
+\begin{code}
+ instance TypeNotEq x y => TypeEqBool x y HFalse
+\end{code}
+
+Although logically the dependency @x y -> b@ now holds, the Haskell
+type system deviates from this insight. Instances are selected based
+only on the syntactic form of the type terms at hand, regardless of
+the constraints. The type-checker sees that @TypeEqBool Int Int HFalse@
+still \emph{appears} plausible, and therefore reports a
+functional dependency violation error~---~even if that constraint
+depends on @TypeNotEq Int Int@ and the latter is not satisfiable.
+
+We once more revise the troublesome instance by taking advantage of
+GHC's lazy selection of overlapping instances. That is, we redirect
+the decision to a helper class @TypeEqBool'@:
+
+\begin{code}
+ instance ( TypeEqBool' x y b, TypeNotEq x y )
+       =>   TypeEqBool  x y b
+\end{code}
+
+We will define the constraint @TypeEqBool'@ shortly.  Because the
+instance @TypeEqBool x y b@ overlaps with @TypeEqBool x x HTrue@, GHC
+is not so eager to chose instances. When presented with the constraint
+@TypeEqBool x y b@, GHC delays the instance selection until the type
+variables @x@ and @y@ are sufficiently instantiated so that GHC can
+find out if they denote the same or different types. If the types are
+the same, the instance @TypeEqBool x x HTrue@ is selected. Otherwise,
+the second instance is chosen and GHC will have to evaluate the
+constraint @TypeEqBool' x y b@. We can drop @TypeNotEq x y@ in the
+instance above because GHC selects the instance if only if the types
+denoted by @x@ and @y@ are not equal. That @TypeNotEq@ constraint is
+implicit in the GHC instance selection algorithm. The good news is
+that GHC no longer immediately reports the violation of the functional
+dependency: now, GHC has to look if the constraint @TypeEqBool' x y b@
+guarantees the dependency. We shall see below how to write the class
+@TypeEqBool'@ to convince GHC of that.
+
+Alas, this trick does not work with Hugs. As we saw above, given two
+overlapping instances, a general one @TypeEqBool x y b@ and a specific
+one @TypeEqBool x x HTrue@ and a dependency @x y -> b@, GHC chooses
+the general instance if and only if it is sure the more specific does
+not apply. In effect, GHC adds to the general instance a ``guard''
+that is the negation of the specific instance's selection condition
+(in our case, the negation of $x = y$). By chance or by design, GHC
+thus effectively removes the overlap, and uses this fact when checking
+for the satisfaction of functional dependencies. Hugs, in contrast,
+assumes the overlap when checking the functional dependencies. That
+is, Hugs assumes that the general instance @TypeEqBool x y b@ should
+also apply when a more specific instance @TypeEqBool x x HTrue@
+applies. The more specific instance implies that given a constraint
+@TypeEqBool x y b@ with @x@~$=$~@y@, @b@ must be @HTrue@. The general
+instance @TypeEqBool x y b@ does not \emph{syntactically} imply
+so. Hugs does not check if the constraints on that instance prove the
+needed implication. Rather, Hugs reports a violation of the functional
+dependency. In Hugs overlapping instances can be used only for
+specialisation, i.e., for giving efficient implementations for
+particular cases of the general problem.
+
+Throughout the end of this section, we therefore will be dealing with
+GHC. We still need to define the class @TypeEqBool'@. At first glance,
+it seems that the class @TypeEqBool'@ must be isomorphic to
+@TypeEqBool@ and so we are in a circle. A moment of reflection shows
+that the constraint @TypeEqBool' x y b@ arises only when @x@ and @y@
+are known to be different. So, we are tempted to write
+
+\begin{code}
+ class TypeEqBool'  x y r | x y -> r
+ instance TypeEqBool' x y HFalse
+\end{code}
+
+Alas, this fails for a different reason: not enough polymorphism.
+Indeed, because of the functional dependency @x y -> b@, the instance
+for @TypeEqBool'@ logically implies that @b@ is \emph{always}
+@HFalse@. When the compiler propagates this information to
+@TypeEqBool x y b@, it notices a conflict with @TypeEqBool x y b@ being
+declared polymorphic in @b@. This is the same sort of error that arises
+in the following code:
+
+\begin{code}
+ foo:: Bool -> a
+ foo x = x
+\end{code}
+
+We are in quandary. On one hand, semantically we need @TypeEqBool' x y HFalse@
+to hold for all @x@ and @y@. On the other hand, we need to allow for
+polymorphism and pretend that in a constraint @TypeEqBool' x y b@,
+@b@ may be something other than @HFalse@. Fortunately, as we saw
+above, the type system is not very smart: when choosing the instances
+the type-checker looks only at the syntactic form of the type terms
+involved. Therefore, to fool the type-checker into thinking that
+@TypeEqBool' x y HFalse@ is more polymorphic than it really is, we
+introduce a series of redirections and eventually arrive at the
+following implementation (we rename our class now to match that in the
+rest of the paper).
+
+\begin{code}
+ class TypeEqBool   x y b | x y -> b
+ class TypeEqBool'  x y b | x y -> b
+ class TypeEqBool'' x y b | x y -> b
+\end{code}
+
+\begin{code}
+ instance TypeEqBool x x HTrue
+ instance TypeEqBool'  [x] y b  => TypeEqBool  x y b
+ instance TypeEqBool''  x  y b  => TypeEqBool' x y b
+ instance TypeEqBool'' [x] y HFalse
+\end{code}
+
+We have wrapped one of the types in question into a type term. We
+chose the term @[x]@ although any type term would have sufficed. The
+key to solving the polymorphism quandary is the last instance
+@TypeEqBool'' [x] y HFalse@. It signifies that in the constraint
+@TypeEqBool'' a b c@, @c@ is \emph{not necessarily} @HFalse@, because
+@a@ can be something other than @[x]@. Semantically, though, it can
+never be anything but. However, the type-checker cannot see that and
+remains satisfied. The above simple code is indeed the most general
+implementation of the type inequality predicate. Alas, it is GHC
+specific.
+
+Although this code works (being used in all other examples of the
+paper) and is logically sound, it still gives a feeling of
+dissatisfaction. If we drop functional dependencies on the class
+@TypeEqBool@, we will discover that although @TypeEqBool Int () HFalse@
+holds and @TypeEqBool Int () HTrue@ does not, both constraints
+@TypeEqBool Int Int HTrue@ and @TypeEqBool Int Int HFalse@ hold. When
+we add the functional dependency, the latter constraint becomes
+unsatisfiable. This behaviour gives us the desired result~---~and yet
+it shows that in the presence of overlapping instances, functional
+dependencies have a ``semantic effect''. Code that was well-typed in
+the absence of dependencies may become ill-typed when dependencies are
+imposed. The functional dependencies do more than help resolve
+overloading. The fact that we have turned the drawbacks of the
+type-checker to our advantage when implementing @TypeEqBool@ also
+leaves a sour after-taste. We would have preferred to rely on a sound
+semantic theory of overloading rather than on playing games with the
+type-checker. Hopefully, the results of the foundational work by
+Sulzmann and others~\cite{SS02,NTGS02} will eventually be implemented
+in all Haskell compilers.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{The type-to-natural mapping}
+\label{A:HType2HNat}
+
+We translate @HProxy@-based indexes to @HNat@-based indexes using a
+class @HType2HNat@. This mapping is of use when we want to normalise
+away type-based indexing, as we have required in
+Sec.~\ref{S:HTypeDriven}. This translation is of course relative to a
+given heterogeneous collection:
+
+\begin{code}
+ class HType2HNat l e n | l e -> n
+  where
+   hType2HNat :: l -> HProxy e -> n
+\end{code}
+
+We avoid any use of overlapping instances. We rather adhere to the
+style proposed towards the end of Sec.~\ref{S:chance}. So there is the
+only one instance for @HType2HNat@:
+
+\begin{code}
+ instance (TypeEqBool e' e b, HType2HNat' b l e n)
+       =>  HType2HNat (HCons e' l) e n
+  where
+   hType2HNat (HCons e' l) p = n
+    where
+     b = typeEqBool (hProxy e') p
+     n = hType2HNat' b l p 
+\end{code}
+
+The instance performs type comparison with @TypeEqBool@, and then it
+detours to a primed helper class @HType2HNat'@ for type dispatch on
+the Boolean @b@.
+
+The helper class is trivially defined.
+
+\begin{code}
+ class HType2HNat' b l e n | b l e -> n
+  where
+   hType2HNat' :: b -> l -> HProxy e -> n
+\end{code}
+
+This is the branch for the case `head of @l@ is of type @e@':
+
+\begin{code}
+ instance HFreeType e l
+       => HType2HNat' HTrue l e HZero
+  where
+   hType2HNat' _ _ _ = HZero
+\end{code}
+
+This is the branch for inequality:
+
+\begin{code}
+ instance HType2HNat l e n
+       => HType2HNat' HFalse l e (HSucc n)
+  where
+   hType2HNat' _ l p = HSucc (hType2HNat l p)
+\end{code}
+
+\end{document}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

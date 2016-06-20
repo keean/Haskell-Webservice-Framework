@@ -1,0 +1,207 @@
+\medskip
+
+\section{An example~---~the `shapes' benchmark}
+\label{S:shapes}
+
+We face an abstract class `shapes' and two concrete subclasses
+`rectangle' and `circle'. Shapes maintain coordinates and other data
+as state. Shapes can be moved around and drawn. The exercise shall be
+to place objects of \emph{different} shapes in a collection and to
+iterate over them as to draw the shapes. It turns out that this is a
+crisp benchmark problem for subtyping polymorphism, virtual methods,
+and class inheritance.\footnote{\small This benchmark problem has been
+designed by Jim Weirich and deeply explored by him and Chris
+Rathman. See the multi-lingual collection `OO Example Code' by Jim
+Weirich at \url{http://onestepback.org/articles/poly/}; see also an
+even heavier collection `OO Shape Examples' by Chris Rathman at
+\url{http://www.angelfire.com/tx4/cus/shapes/}.}
+
+\smallskip
+
+In C++, the base class for shapes is defined as follows:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\|\!\@]
+ class Shape {
+ public:
+  Shape(int newx, int newy) {
+    x = newx; y = newy;
+  }
+\end{Verbatim}
+
+\begin{Verbatim}[fontsize=\small,commandchars=\|\!\@]
+  // |cmt!Accessors@
+  int getX() { return x; }
+  int getY() { return y; }
+  void setX(int newx) { x = newx; }
+  void setY(int newy) { y = newy; }
+\end{Verbatim}
+
+\begin{Verbatim}[fontsize=\small,commandchars=\|\!\@]
+  // |cmt!Move shape relatively@
+  void rMoveTo(int deltax, int deltay) {
+    setX(getX() + deltax);
+    setY(getY() + deltay);
+  }
+\end{Verbatim}
+
+\begin{Verbatim}[fontsize=\small,commandchars=\|\!\@]
+  // |cmt!An abstract draw method@
+  virtual void draw() = 0;
+ private:
+   int x;
+   int y;
+ }
+\end{Verbatim}
+
+The @x@, @y@ coordinates are made private, while public accessors are
+provided. The @rMoveTo@ method will be inherited to the specific shape
+subclasses. The @draw@ method is virtual and even abstract; hence
+subclasses must implement @draw@ eventually.
+
+For brevity, we elide the derivation of specific subclasses:
+
+\begin{code}
+ class Rectangle : public Shape {
+ public:
+  Rectangle(int newx, int newy, int newwidth, int newheight)
+           : Shape(newx, newy) { ... }
+  ...
+ }
+\end{code}
+
+\begin{code}
+ class Circle : public Shape {
+  Circle(int newx, int newy, int newradius)
+        : Shape(newx, newy) { ... }
+  ...
+ }
+\end{code}
+
+We iterate over some shapes as follows:
+
+\begin{code}
+ Shape *scribble[2];
+ scribble[0] = new Rectangle(10, 20, 5, 6);
+ scribble[1] = new Circle(15, 25, 8);
+ for (int i = 0; i < 2; i++) {
+   scribble[i]->draw();
+   scribble[i]->rMoveTo(100, 100);
+   scribble[i]->draw();
+ }
+\end{code}
+
+We note that this loop exercises subtyping polymorphism; the actual
+@draw@ method, that is called, differs per element in the array. The
+program run produces this output~---~subject to suitable
+implementations of the (elided) @draw@ methods:
+
+\begin{code}
+ Drawing a Rectangle at:(10,20), width 5, height 6
+ Drawing a Rectangle at:(110,120), width 5, height 6
+ Drawing a Circle at:(15,25), radius 8
+ Drawing a Circle at:(115,125), radius 8
+\end{code}
+
+We will now show an OOHaskell encoding, which happens to pleasantly
+mimic the C++ encoding, while any remaining deviations are
+appreciated. Most notably, we are going to leverage type inference.
+We are not going to define \emph{any} type~---~nevertheless the code
+will be fully statically typed, of course.
+
+\smallskip
+
+Here is the OOHaskell rendering of the shape class:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\|\{\}]
+ -- |cmt{Object generator for shapes}
+ shape newx newy self
+   = do
+	-- |cmt{New references for private state}
+        x <- newIORef newx
+        y <- newIORef newy
+\end{Verbatim}
+
+\begin{Verbatim}[fontsize=\small,commandchars=\|\{\}]
+	-- |cmt{Return object as record of methods}
+        return $  getX     .=. readIORef x
+              .*. getY     .=. readIORef y
+              .*. setX     .=. (\newx -> writeIORef x newx)
+              .*. setY     .=. (\newy -> writeIORef y newy)
+              .*. rMoveTo  .=. (\deltax deltay -> 
+                            do
+                              x <- self # getX
+                              y <- self # getY
+                              (self # setX) (x + deltax)
+                              (self # setY) (y + deltay) )
+         .*. emptyRecord
+\end{Verbatim}
+
+Classes become \emph{functions that take constructor arguments plus a
+self reference and that return a computation whose result is the new
+object~---~a record of methods}. We can refer to other methods of the
+same object by invoking @self@; cf.\ @self@~@#@~@getX@ and others.
+
+We use the extensible records of the HList library~\cite{HLIST-HW04},
+hence:
+%
+\begin{itemize}\noskip
+\item @emptyRecord@ denotes what the name promises.
+\item @(.*.)@ is right-associative record extension.
+\item @(.=.)@ is the component constructor: \w{label} @.=.@ \w{value}.
+\item Labels are defined according to a trivial scheme; see later.
+\end{itemize}
+
+We note that the abstract @draw@ method is not mentioned in the
+OOHaskell code because we do not dare declaring its type. (We will
+later show how to add a static type constraint so that we can rule out
+instantiation of @shape@ and any subclass not defining @draw@.)
+
+As in the C++ case, we only sketch derivation of the sublasses:
+
+\begin{code}
+ rectangle newx newy newwidth newheight self
+  = do  super <- shape newx newy self
+        ...
+        return ... .*. super
+\end{code}
+
+\begin{code}
+ circle newx newy newradius self
+  = do  super <- shape newx newy self
+        ...
+        return ... .*. super
+\end{code}
+
+This snippet illustrates the essence of inheritance in OOHaskell.
+Object generation for the ancestor class is made part of the monadic
+sequence; @self@ is passed to the ancestor as well.
+
+Here is the OOHaskell rendering of a loop over different shapes:
+
+\begin{Verbatim}[fontsize=\small,commandchars=\|\{\}]
+ -- |cmt{Object construction and invocation as a monadic sequence}
+ myOOP = do
+          -- |cmt{Take fixpoint of object generators}
+          s1 <- mfix (rectangle (10::Int) (20::Int) 5 6)
+          s2 <- mfix (circle (15::Int) 25 8)
+          -- |cmt{Create a list of different shapes}
+          let scribble = lubCast (HCons s1 (HCons s2 HNil))
+          -- |cmt{Loop over list with normal monadic map}
+          mapM_ (\shape -> do
+                            shape # draw
+                            (shape # rMoveTo) 100 100
+                            shape # draw)
+                scribble
+\end{Verbatim}
+
+The use of @mfix@ (an analogue of @new@) reflects that object
+generators take self and construct (part of) it. (Open recursion
+enables inheritance.) We cannot \emph{directly} place rectangles and
+circles in a normal Haskell list~---~as their types differ. So instead
+we detour through a heterogeneous list (cf.\ @HCons@ and @HNil@), which
+however is casted immediately to a normal, homogeneous list by means
+of a least-upper bound operation; cf.\ @lubCast@. Incidentally, if the
+`intersection' of the type of the objects @s1@ and @s2@ does not
+include @draw@, we get a static type error which literally says so. As
+a result, the original for-loop can be carried out in the native
+Haskell way: a normal (monadic) list map over a normal list of shapes.
