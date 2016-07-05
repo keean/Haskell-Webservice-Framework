@@ -12,8 +12,8 @@ import System.IO
 import Data.Time
 -- import Data.FiniteMap
 -- import Data.Set
-import Control.Monad
-import GHC.IO.Handle
+--import Control.Monad
+--import GHC.IO.Handle
 import Numeric
 import Control.Concurrent
 import Control.Exception as Exception
@@ -212,7 +212,7 @@ manager req rsp stateChannel state = do
                             (pcds,p0,p1,b0,b1)
                                 | pcds /= "" && p0 /= "" && p1 /= "" && b0 /= "" && b1 /= "" -> case (readDec p0,
                                     readDec p1,readDec b0,readDec b1) of
-                                        ([(i0,_)],[(i1,_)],[(j0,_)],[(j1,_)]) -> htmlNobr
+                                        ([(i0::Integer,_)],[(i1::Integer,_)],[(j0::Integer,_)],[(j1::Integer,_)]) -> htmlNobr
                                             $ htmlNobrText (((showString "Searching for " . showString pcds
                                                 . showString ", " . showInt i0 . showString "K - " . showInt i1
                                                 . showString "K, " . showInt j0 . showString " - " . showInt j1)
@@ -244,7 +244,7 @@ manager req rsp stateChannel state = do
                                             searchParameters = Just (pcds,i0,i1,j0,j1) })
                                     _ -> return ()
                             | otherwise -> case searchParameters state of
-                                Just (pcds,i0,i1,j0,j1) -> htmlResultsTable rsp state (searchResults state)
+                                Just (pcds,_i0,_i1,_j0,_j1) -> htmlResultsTable rsp state (searchResults state)
                                 _ -> return ()
     htmlBR  
     write rsp
